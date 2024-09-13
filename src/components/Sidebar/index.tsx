@@ -101,7 +101,7 @@ const menuGroups = [
           </svg>
         ),
         label: "Files",
-        route: "/form-layout",
+        route: "/files",
       },
       {
         icon: (
