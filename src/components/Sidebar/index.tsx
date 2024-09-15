@@ -7,6 +7,8 @@ import Image from "next/image";
 import SidebarItem from "@/components/Sidebar/SidebarItem";
 import ClickOutside from "@/components/ClickOutside";
 import useLocalStorage from "@/hooks/useLocalStorage";
+import { supabase } from '../../lib/supabseClient';
+import { useRouter } from 'next/navigation';
 
 interface SidebarProps {
   sidebarOpen: boolean;
@@ -321,6 +323,13 @@ const menuGroups = [
 const Sidebar = ({ sidebarOpen, setSidebarOpen }: SidebarProps) => {
   const pathname = usePathname();
   const [pageName, setPageName] = useLocalStorage("selectedMenu", "dashboard");
+  const router = useRouter();
+  const handleSignOut = async () => {
+    const { error } = await supabase.auth.signOut();
+    if (!error) {
+      router.push('/signin');
+    }
+  };
 
   return (
     <ClickOutside onClick={() => setSidebarOpen(false)}>
@@ -388,7 +397,7 @@ const Sidebar = ({ sidebarOpen, setSidebarOpen }: SidebarProps) => {
           </nav>
           {/* <!-- Sidebar Menu --> */}
           <div className="relative h-screen overflow-hidden">
-  <button className="absolute bottom-4 left-1/2 transform -translate-x-1/2 flex items-center gap-3.5 px-6 py-4 text-sm font-medium duration-300 ease-in-out hover:text-primary lg:text-base">
+  <button className="absolute bottom-4 left-1/2 transform -translate-x-1/2 flex items-center gap-3.5 px-6 py-4 text-sm font-medium duration-300 ease-in-out hover:text-primary lg:text-base" onClick={handleSignOut}>
     <svg
       className="fill-current"
       width="22"
