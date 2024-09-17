@@ -1,53 +1,53 @@
-"use client";
-import { useState } from "react";
-import { Package } from "@/types/package";
+'use client';
+import React, { useState, useEffect } from 'react';
+import { createClient } from '@supabase/supabase-js';
 
-const initialPackageData: Package[] = [
-  {
-    name: "Free package",
-    price: 0.0,
-    invoiceDate: `Jan 13, 2023`,
-    status: "U-Dev",
-  },
-  {
-    name: "Standard Package",
-    price: 59.0,
-    invoiceDate: `Jan 13, 2023`,
-    status: "O-Prod",
-  },
-  {
-    name: "Business Package",
-    price: 99.0,
-    invoiceDate: `Jan 13, 2023`,
-    status: "T-Stop",
-  },
-  {
-    name: "Standard Package",
-    price: 59.0,
-    invoiceDate: `Jan 13, 2023`,
-    status: "Pending",
-  },
-];
+// Replace with your Supabase project URL and anon key
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL ?? '';
+const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? '';
+const supabase = createClient(supabaseUrl, supabaseKey);
 
-const TableThree = () => {
-  const [packages, setPackages] = useState(initialPackageData);
+const ProjectsTable = () => {
+  const [projects, setProjects] = useState([]);
+  const [loading, setLoading] = useState(true);
 
-  const handleEyeClick = (index: number) => {
-    // Create a copy of the current packages
-    const updatedPackages = [...packages];
-    const packageItem = updatedPackages[index];
+  useEffect(() => {
+    fetchProjects();
+  }, []);
 
-    // Toggle the hidden state
-    if (packageItem.hidden) {
-      // If it's currently hidden, unhide it
-      updatedPackages[index] = { ...packageItem, hidden: false };
-    } else {
-      // If it's currently visible, hide it and move to the end
-      updatedPackages.splice(index, 1);
-      updatedPackages.push({ ...packageItem, hidden: true });
+  const fetchProjects = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('projects')
+        .select('id, name, start_date, status')
+        .order('start_date', { ascending: false });
+
+      if (error) throw error;
+      setProjects(data);
+    } catch (error) {
+      console.error('Error fetching projects:', error);
+    } finally {
+      setLoading(false);
     }
-    setPackages(updatedPackages);
   };
+
+  const handleEyeClick = (id) => {
+    setProjects(projects.map(project => 
+      project.id === id ? { ...project, hidden: !project.hidden } : project
+    ));
+  };
+
+  const getStatusClass = (status) => {
+    switch (status) {
+      case 'O-Prod': return 'bg-success text-success';
+      case 'T-Stop': return 'bg-danger text-danger';
+      default: return 'bg-warning text-warning';
+    }
+  };
+
+  if (loading) {
+    return <div>Loading projects...</div>;
+  }
 
   return (
     <div className="rounded-sm border border-stroke bg-white px-5 pb-2.5 pt-6 shadow-default dark:border-strokedark dark:bg-boxdark sm:px-7.5 xl:pb-1">
@@ -70,40 +70,32 @@ const TableThree = () => {
             </tr>
           </thead>
           <tbody>
-            {packages.map((packageItem, index) => (
-              <tr key={index} className={packageItem.hidden ? "opacity-50" : ""}>
+            {projects.map((project) => (
+              <tr key={project.id} className={project.hidden ? "opacity-50" : ""}>
                 <td className="border-b border-[#eee] px-4 py-5 pl-9 dark:border-strokedark xl:pl-11">
                   <h5 className="font-medium text-black dark:text-white">
-                    {packageItem.name}
+                    {project.name}
                   </h5>
-                  <p className="text-sm">${packageItem.price}</p>
                 </td>
                 <td className="border-b border-[#eee] px-4 py-5 dark:border-strokedark">
                   <p className="text-black dark:text-white">
-                    {packageItem.invoiceDate}
+                    {new Date(project.start_date).toLocaleDateString()}
                   </p>
                 </td>
                 <td className="border-b border-[#eee] px-4 py-5 dark:border-strokedark">
                   <p
-                    className={`inline-flex rounded-full bg-opacity-10 px-3 py-1 text-sm font-medium ${
-                      packageItem.status === "O-Prod"
-                        ? "bg-success text-success"
-                        : packageItem.status === "T-Stop"
-                        ? "bg-danger text-danger"
-                        : "bg-warning text-warning"
-                    }`}
+                    className={`inline-flex rounded-full bg-opacity-10 px-3 py-1 text-sm font-medium ${getStatusClass(project.status)}`}
                   >
-                    {packageItem.status}
+                    {project.status}
                   </p>
                 </td>
                 <td className="border-b border-[#eee] px-4 py-5 dark:border-strokedark">
                   <div className="flex items-center space-x-3.5">
-                    {/* Eye Button */}
                     <button
                       className="hover:text-primary"
-                      onClick={() => handleEyeClick(index)}
+                      onClick={() => handleEyeClick(project.id)}
                     >
-                      {packageItem.hidden ? (
+                      {project.hidden ? (
                         <svg
                           className="fill-current"
                           width="18"
@@ -151,4 +143,4 @@ const TableThree = () => {
   );
 };
 
-export default TableThree;
+export default ProjectsTable;

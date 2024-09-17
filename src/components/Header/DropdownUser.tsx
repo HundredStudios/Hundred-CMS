@@ -28,15 +28,9 @@ const DropdownUser = () => {
       setLoading(true);
   
       // Check if cached data exists in local storage
-      const cachedProfile = localStorage.getItem('profile');
+
   
-      if (cachedProfile) {
-        const { name, avatar_url, role } = JSON.parse(cachedProfile);
-        setName(name);
-        setProfileImage(avatar_url);
-        setRole(role);
-        setLoading(false); // Stop loading after using cached data
-      }
+      
   
       const { data: { user } } = await supabase.auth.getUser();
   
@@ -62,15 +56,7 @@ const DropdownUser = () => {
         setProfileImage(data.avatar_url || '/images/user/user-06.png');
         setRole(data.role || '');
   
-        // Cache the fetched data in local storage
-        localStorage.setItem(
-          'profile',
-          JSON.stringify({
-            name: data.name || '',
-            avatar_url: data.avatar_url || '/images/user/user-06.png',
-            role: data.role || '',
-          })
-        );
+      
       }
     } catch (error) {
       console.error('Error loading user data!', error);

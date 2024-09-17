@@ -1,15 +1,132 @@
+"use client";
 import Breadcrumb from "@/components/Breadcrumbs/Breadcrumb";
-import Image from "next/image";
-import { Metadata } from "next";
 import DefaultLayout from "@/components/Layouts/DefaultLayout";
-
-export const metadata: Metadata = {
-  title: "Next.js Settings | TailAdmin - Next.js Dashboard Template",
-  description:
-    "This is Next.js Settings page for TailAdmin - Next.js Tailwind CSS Admin Dashboard Template",
-};
+import { useRouter } from "next/navigation";
+import { supabase } from "../../lib/supabseClient";
+import { useEffect, useState } from "react";
 
 const Settings = () => {
+  const [loading, setLoading] = useState(true);
+  const router = useRouter();
+  const [name, setName] = useState("");
+  const [num, setNum] = useState("");
+  const [email, setEmail] = useState("");
+  const [usrname, setUsrname] = useState("");
+  const [note, setNote] = useState("");
+
+  useEffect(() => {
+    getProfile();
+  }, []);
+
+  const getProfile = async () => {
+    try {
+      setLoading(true);
+      const { data: { user } } = await supabase.auth.getUser();
+
+      if (!user) {
+        router.push('/login');
+        return;
+      }
+
+      let { data, error, status } = await supabase
+        .from('profiles')
+        .select('name, phone_number, email, username, note')
+        .eq('user_id', user.id)
+        .single();
+
+      if (error && status !== 406) {
+        throw error;
+      }
+
+      if (data) {
+        setName(data.name || '');
+        setNum(data.phone_number || '');
+        setEmail(data.email || '');
+        setUsrname(data.username || '');
+        setNote(data.note || '');
+      }
+    } catch (error) {
+      console.error('Error loading user data!', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const updateProfile = async (e) => {
+    e.preventDefault();
+    try {
+      setLoading(true);
+      const { data: { user } } = await supabase.auth.getUser();
+  
+      if (!user) {
+        router.push('/login');
+        return;
+      }
+  
+      console.log("Current state:", { name, num, email, usrname, note });
+  
+      // Update name
+      let { data: nameData, error: nameError } = await supabase
+        .from('profiles')
+        .update({ name: name })
+        .eq('user_id', user.id);
+      if (nameError) {
+        console.error("Error updating name:", nameError);
+        throw nameError;
+      }
+  
+      // Update phone number
+      let { data: phoneData, error: phoneError } = await supabase
+        .from('profiles')
+        .update({ phone_number: num })
+        .eq('user_id', user.id);
+      if (phoneError) {
+        console.error("Error updating phone number:", phoneError);
+        throw phoneError;
+      }
+  
+      // Update email
+      let { data: emailData, error: emailError } = await supabase
+        .from('profiles')
+        .update({ email: email })
+        .eq('user_id', user.id);
+      if (emailError) {
+        console.error("Error updating email:", emailError);
+        throw emailError;
+      }
+  
+      // Update username
+      let { data: usernameData, error: usernameError } = await supabase
+        .from('profiles')
+        .update({ username: usrname })
+        .eq('user_id', user.id);
+      if (usernameError) {
+        console.error("Error updating username:", usernameError);
+        throw usernameError;
+      }
+  
+      // Update note
+      let { data: noteData, error: noteError } = await supabase
+        .from('profiles')
+        .update({ note: note })
+        .eq('user_id', user.id);
+      if (noteError) {
+        console.error("Error updating note:", noteError);
+        throw noteError;
+      }
+  
+   
+  
+      console.log("Profile updated successfully");
+      alert("Profile updated successfully!");
+    } catch (error) {
+      console.error('Error updating the data!', error);
+      alert(`Error updating the data: ${error.message}`);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
     <DefaultLayout>
       <div className="mx-auto max-w-270">
@@ -24,7 +141,7 @@ const Settings = () => {
                 </h3>
               </div>
               <div className="p-7">
-                <form action="#">
+                <form onSubmit={updateProfile}>
                   <div className="mb-5.5 flex flex-col gap-5.5 sm:flex-row">
                     <div className="w-full sm:w-1/2">
                       <label
@@ -64,8 +181,9 @@ const Settings = () => {
                           type="text"
                           name="fullName"
                           id="fullName"
-                          placeholder="Devid Jhon"
-                          defaultValue="Devid Jhon"
+                          placeholder="Full Name"
+                          value={name}
+                          onChange={(e) => setName(e.target.value)}
                         />
                       </div>
                     </div>
@@ -82,8 +200,9 @@ const Settings = () => {
                         type="text"
                         name="phoneNumber"
                         id="phoneNumber"
-                        placeholder="+990 3343 7865"
-                        defaultValue="+990 3343 7865"
+                        placeholder="Phone Number"
+                        value={num}
+                        onChange={(e) => setNum(e.target.value)}
                       />
                     </div>
                   </div>
@@ -126,8 +245,9 @@ const Settings = () => {
                         type="email"
                         name="emailAddress"
                         id="emailAddress"
-                        placeholder="devidjond45@gmail.com"
-                        defaultValue="devidjond45@gmail.com"
+                        placeholder="Email Address"
+                        value={email}
+                        onChange={(e) => setEmail(e.target.value)}
                       />
                     </div>
                   </div>
@@ -144,8 +264,9 @@ const Settings = () => {
                       type="text"
                       name="Username"
                       id="Username"
-                      placeholder="devidjhon24"
-                      defaultValue="devidjhon24"
+                      placeholder="Username"
+                      value={usrname}
+                      onChange={(e) => setUsrname(e.target.value)}
                     />
                   </div>
 
@@ -194,7 +315,8 @@ const Settings = () => {
                         id="bio"
                         rows={6}
                         placeholder="Write your bio here"
-                        defaultValue="Lorem ipsum dolor sit amet, consectetur adipiscing elit. Pellentesque posuere fermentum urna, eu condimentum mauris tempus ut. Donec fermentum blandit aliquet."
+                        value={note}
+                        onChange={(e) => setNote(e.target.value)}
                       ></textarea>
                     </div>
                   </div>
@@ -202,22 +324,23 @@ const Settings = () => {
                   <div className="flex justify-end gap-4.5">
                     <button
                       className="flex justify-center rounded border border-stroke px-6 py-2 font-medium text-black hover:shadow-1 dark:border-strokedark dark:text-white"
-                      type="submit"
+                      type="button"
+                      onClick={() => router.push('/')}
                     >
                       Cancel
                     </button>
                     <button
                       className="flex justify-center rounded bg-primary px-6 py-2 font-medium text-gray hover:bg-opacity-90"
                       type="submit"
+                      disabled={loading}
                     >
-                      Save
+                      {loading ? 'Saving...' : 'Save'}
                     </button>
                   </div>
                 </form>
               </div>
             </div>
           </div>
-          
         </div>
       </div>
     </DefaultLayout>

@@ -62,6 +62,7 @@ const Calendar = () => {
   };
 
   const renderCalendar = () => {
+    const today = new Date();
     return (
       <table className="w-full">
         <thead>
@@ -78,7 +79,14 @@ const Calendar = () => {
           {Array.from({ length: Math.ceil(calendarDays.length / 7) }).map((_, weekIndex) => (
             <tr key={weekIndex} className="grid grid-cols-7">
               {calendarDays.slice(weekIndex * 7, (weekIndex + 1) * 7).map((day, dayIndex) => (
-                <td key={dayIndex} className={`ease relative h-20 cursor-pointer border border-stroke p-2 transition duration-500 hover:bg-gray dark:border-strokedark dark:hover:bg-meta-4 md:h-25 md:p-6 xl:h-31 ${day.getMonth() !== currentDate.getMonth() ? 'bg-gray-100' : ''}`}>
+                <td 
+                  key={dayIndex} 
+                  className={`ease relative h-20 cursor-pointer border border-stroke p-2 transition duration-500 hover:bg-gray dark:border-strokedark dark:hover:bg-meta-4 md:h-25 md:p-6 xl:h-31 ${
+                    day.getMonth() !== currentDate.getMonth() ? 'bg-gray-100' : ''
+                  } ${
+                    day.toDateString() === today.toDateString() ? 'bg-blue-100 dark:bg-blue-900' : ''
+                  }`}
+                >
                   <span className={`font-medium ${day.getMonth() === currentDate.getMonth() ? 'text-black dark:text-white' : 'text-gray-400'}`}>
                     {day.getDate()}
                   </span>

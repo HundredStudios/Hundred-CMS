@@ -31,7 +31,7 @@ const TaskOverlay = ({ onAddTask, onClose }) => {
           </div>
           <div className="mb-4">
             <label htmlFor="date" className="mb-2 block font-bold">
-              Date
+              Deadline
             </label>
             <input
               type="date"
