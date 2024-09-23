@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import Image from 'next/image';
 import { createClient } from '@supabase/supabase-js';
 
@@ -23,10 +23,16 @@ interface User {
   avatar_url: string;
 }
 
-const ChatCard = () => {
-  const [messages, setMessages] = useState<Message[]>([]);
+interface GroupedMessage {
+  date: string;
+  messages: Message[];
+}
+
+const ChatCard: React.FC = () => {
+  const [groupedMessages, setGroupedMessages] = useState<GroupedMessage[]>([]);
   const [newMessage, setNewMessage] = useState('');
   const [user, setUser] = useState<User | null>(null);
+  const messagesEndRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     getUser();
@@ -37,6 +43,14 @@ const ChatCard = () => {
       subscription.unsubscribe();
     };
   }, []);
+
+  useEffect(() => {
+    scrollToBottom();
+  }, [groupedMessages]);
+
+  const scrollToBottom = () => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  };
 
   const getUser = async () => {
     try {
@@ -67,7 +81,6 @@ const ChatCard = () => {
 
   const fetchMessagesAndProfiles = async () => {
     try {
-      // Fetch messages first
       const { data: messagesData, error: messagesError } = await supabase
         .from('messages')
         .select('id, user_id, content, created_at')
@@ -76,30 +89,41 @@ const ChatCard = () => {
       if (messagesError) throw messagesError;
 
       if (messagesData) {
-        // Fetch profiles separately
         const { data: profilesData, error: profilesError } = await supabase
           .from('profiles')
           .select('user_id, username, avatar_url');
 
         if (profilesError) throw profilesError;
 
-        // Map profiles by user_id
         const profilesMap = profilesData.reduce((map: any, profile: any) => {
           map[profile.user_id] = profile;
           return map;
         }, {});
 
-        // Attach profile data to each message
         const messagesWithProfiles = messagesData.map((message: Message) => ({
           ...message,
           profiles: profilesMap[message.user_id] || null,
         }));
 
-        setMessages(messagesWithProfiles);
+        groupMessagesByDate(messagesWithProfiles);
       }
     } catch (error) {
       console.error('Error fetching messages and profiles:', error);
     }
+  };
+
+  const groupMessagesByDate = (messages: Message[]) => {
+    const grouped = messages.reduce((groups: GroupedMessage[], message) => {
+      const date = new Date(message.created_at).toLocaleDateString();
+      const group = groups.find(g => g.date === date);
+      if (group) {
+        group.messages.push(message);
+      } else {
+        groups.push({ date, messages: [message] });
+      }
+      return groups;
+    }, []);
+    setGroupedMessages(grouped);
   };
 
   const subscribeToMessages = () => {
@@ -108,9 +132,6 @@ const ChatCard = () => {
         .channel('public:messages')
         .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages' }, payload => {
           const newMessage = payload.new as Message;
-          console.log('New message received:', newMessage); // Log new message to debug
-
-          // Fetch the profile for the new message user
           supabase
             .from('profiles')
             .select('username, avatar_url')
@@ -120,13 +141,29 @@ const ChatCard = () => {
               if (!error && data) {
                 newMessage.profiles = data;
               }
-              setMessages(prevMessages => [...prevMessages, newMessage]);
+              addMessageToGroup(newMessage);
             });
         })
         .subscribe();
     } catch (error) {
       console.error('Error subscribing to messages:', error);
     }
+  };
+
+  const addMessageToGroup = (newMessage: Message) => {
+    setGroupedMessages(prevGroups => {
+      const date = new Date(newMessage.created_at).toLocaleDateString();
+      const lastGroup = prevGroups[prevGroups.length - 1];
+      
+      if (lastGroup && lastGroup.date === date) {
+        return [
+          ...prevGroups.slice(0, -1),
+          { ...lastGroup, messages: [...lastGroup.messages, newMessage] }
+        ];
+      } else {
+        return [...prevGroups, { date, messages: [newMessage] }];
+      }
+    });
   };
 
   const sendMessage = async (e: React.FormEvent) => {
@@ -139,64 +176,74 @@ const ChatCard = () => {
         .insert({
           user_id: user.id,
           content: newMessage.trim(),
-          created_at: new Date().toISOString(), // Set the current timestamp for created_at
+          created_at: new Date().toISOString(),
         });
   
       if (error) throw error;
   
-      setNewMessage(''); // Clear input after sending message
+      setNewMessage('');
     } catch (error) {
       console.error('Error sending message:', error);
     }
   };
-  
+
+  const formatTime = (dateString: string) => {
+    return new Date(dateString).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  };
 
   return (
-    <div className="col-span-12 rounded-sm border border-stroke bg-white py-6 shadow-default dark:border-strokedark dark:bg-boxdark xl:col-span-4">
+    <div className="col-span-12 rounded-sm border border-stroke bg-white py-4 shadow-default dark:border-strokedark dark:bg-boxdark xl:col-span-4">
       <h4 className="mb-6 px-7.5 text-xl font-semibold text-black dark:text-white">
         Real-time Chats
       </h4>
 
-      <div className="flex flex-col h-[calc(100vh-200px)] px-7.5">
-        <div className="flex-grow overflow-y-auto mb-4">
-          {messages.map((message) => (
-            <div
-              key={message.id}
-              className={`flex ${
-                message.user_id === user?.id ? 'justify-end' : 'justify-start'
-              } mb-4`}
-            >
-              <div
-                className={`flex ${
-                  message.user_id === user?.id ? 'flex-row-reverse' : 'flex-row'
-                } items-end`}
-              >
-                <div className="flex-shrink-0 h-8 w-8 rounded-full overflow-hidden mr-2">
-                  <Image
-                    width={32}
-                    height={32}
-                    src={message.profiles?.avatar_url || '/images/user/user-01.png'}
-                    alt={message.profiles?.username || 'User'}
-                  />
+      <div className="flex flex-col h-[400px] px-7.5">
+        <div className="flex-grow overflow-y-auto mb-4 pr-4 scrollbar-thin scrollbar-thumb-gray-400 scrollbar-track-gray-200 hover:scrollbar-thumb-gray-500 scrollbar-thumb-rounded-full scrollbar-track-rounded-full">
+          {groupedMessages.map((group, groupIndex) => (
+            <React.Fragment key={group.date}>
+              <div className="flex items-center my-4">
+                <div className="flex-grow border-t border-gray-300"></div>
+                <div className="mx-4 px-4 py-1 bg-gray-200 text-gray-600 text-xs rounded-full">
+                  {group.date}
                 </div>
-                <div
-                  className={`max-w-xs px-4 py-2 rounded-lg ${
-                    message.user_id === user?.id
-                      ? 'bg-primary text-white'
-                      : 'bg-gray-200 text-gray-800'
-                  }`}
-                >
-                  <p>{message.content}</p>
-                  {message.profiles?.username && (
-                    <p className="text-xs mt-1 opacity-70">{message.profiles.username}</p>
-                  )}
-                  <p className="text-xs mt-1 opacity-70">
-                    {new Date(message.created_at).toLocaleTimeString()}
-                  </p>
-                </div>
+                <div className="flex-grow border-t border-gray-300"></div>
               </div>
-            </div>
+              {group.messages.map((message, messageIndex) => (
+                <div key={message.id} className="mb-4">
+                  <div className={`flex ${message.user_id === user?.id ? 'justify-end' : 'justify-start'}`}>
+                    <div className={`flex ${message.user_id === user?.id ? 'flex-row-reverse' : 'flex-row'} items-end max-w-[80%]`}>
+                      <div className="flex-shrink-0 h-8 w-8 rounded-full overflow-hidden">
+                        <Image
+                          width={32}
+                          height={32}
+                          src={message.profiles?.avatar_url || '/images/user/user-01.png'}
+                          alt={message.profiles?.username || 'User'}
+                        />
+                      </div>
+                      <div className={`flex flex-col ${message.user_id === user?.id ? 'items-end mr-2' : 'items-start ml-2'}`}>
+                        <span className="text-xs text-gray-500 mb-1">
+                          {message.profiles?.username || 'Unknown User'}
+                        </span>
+                        <div
+                          className={`px-4 py-2 rounded-lg ${
+                            message.user_id === user?.id
+                              ? 'bg-primary text-white'
+                              : 'bg-black text-white'
+                          }`}
+                        >
+                          <p>{message.content}</p>
+                        </div>
+                        <span className="text-xs text-gray-500 mt-1">
+                          {formatTime(message.created_at)}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </React.Fragment>
           ))}
+          <div ref={messagesEndRef} />
         </div>
         <form onSubmit={sendMessage} className="flex items-center">
           <input
