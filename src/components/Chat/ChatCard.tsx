@@ -209,7 +209,7 @@ const ChatCard: React.FC = () => {
                 <div className="flex-grow border-t border-gray-300"></div>
               </div>
               {group.messages.map((message, messageIndex) => (
-                <div key={message.id} className="mb-4">
+                <div key={message.id} className="mb-2">
                   <div className={`flex ${message.user_id === user?.id ? 'justify-end' : 'justify-start'}`}>
                     <div className={`flex ${message.user_id === user?.id ? 'flex-row-reverse' : 'flex-row'} items-end max-w-[80%]`}>
                       <div className="flex-shrink-0 h-8 w-8 rounded-full overflow-hidden">

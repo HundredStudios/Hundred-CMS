@@ -1,61 +1,89 @@
 "use client";
-import jsVectorMap from "jsvectormap";
-import "jsvectormap/dist/jsvectormap.css";
-import React, { useEffect } from "react";
-import "../../js/us-aea-en";
+import React, { useState } from "react";
+import { ComposableMap, Geographies, Geography, ZoomableGroup } from "react-simple-maps";
+import nepalGeoJson from "../../data/nepal-districts.json"; // Make sure to have a valid Nepal districts GeoJSON
 
 const MapOne: React.FC = () => {
-  useEffect(() => {
-    const mapOne = new jsVectorMap({
-      selector: "#mapOne",
-      map: "us_aea_en",
-      zoomButtons: true,
+  const [position, setPosition] = useState({ coordinates: [83.9416, 28.3949], zoom: 2 });
 
-      regionStyle: {
-        initial: {
-          fill: "#C8D0D8",
-        },
-        hover: {
-          fillOpacity: 1,
-          fill: "#3056D3",
-        },
-      },
-      regionLabelStyle: {
-        initial: {
-          fontFamily: "Satoshi",
-          fontWeight: "semibold",
-          fill: "#fff",
-        },
-        hover: {
-          cursor: "pointer",
-        },
-      },
+  const handleZoomIn = () => {
+    if (position.zoom >= 4) return; // Limit the max zoom level
+    setPosition((pos) => ({ ...pos, zoom: pos.zoom * 1.5 }));
+  };
 
-      labels: {
-        regions: {
-          render(code: string) {
-            return code.split("-")[1];
-          },
-        },
-      },
-    });
+  const handleZoomOut = () => {
+    if (position.zoom <= 1) return; // Limit the minimum zoom level
+    setPosition((pos) => ({ ...pos, zoom: pos.zoom / 1.5 }));
+  };
 
-    return () => {
-      const map = document.getElementById("mapOne");
-      if (map) {
-        map.innerHTML = "";
-      }
-      // mapOne.destroy();
-    };
-  }, []);
+  const handleMoveEnd = (newPosition: any) => {
+    setPosition(newPosition);
+  };
 
   return (
     <div className="col-span-12 rounded-sm border border-stroke bg-white px-7.5 py-6 shadow-default dark:border-strokedark dark:bg-boxdark xl:col-span-7">
       <h4 className="mb-2 text-xl font-semibold text-black dark:text-white">
-        Region labels
+        Nepal Districts
       </h4>
-      <div className="h-90">
-        <div id="mapOne" className="mapOne map-btn"></div>
+      <div className="relative h-[500px] w-full"> {/* Ensure size is suitable */}
+        <ComposableMap
+          projection="geoMercator"
+          projectionConfig={{
+            center: [83.9416, 28.3949], // Center coordinates for Nepal
+            scale: 2500, // Adjust scale
+          }}
+          style={{
+            width: "100%",
+            height: "100%",
+          }}
+        >
+          <ZoomableGroup
+            center={position.coordinates}
+            zoom={position.zoom}
+            onMoveEnd={handleMoveEnd}
+          >
+            <Geographies geography={nepalGeoJson}>
+              {({ geographies }) =>
+                geographies.map((geo) => (
+                  <Geography
+                    key={geo.rsmKey}
+                    geography={geo}
+                    style={{
+                      default: {
+                        fill: "#C8D0D8",
+                        outline: "none",
+                      },
+                      hover: {
+                        fill: "#3056D3",
+                        outline: "none",
+                      },
+                      pressed: {
+                        fill: "#FF5722",
+                        outline: "none",
+                      },
+                    }}
+                  />
+                ))
+              }
+            </Geographies>
+          </ZoomableGroup>
+        </ComposableMap>
+
+        {/* Zoom in/out buttons */}
+        <div className="absolute bottom-4 right-4 flex space-x-2 z-10">
+          <button
+            onClick={handleZoomIn}
+            className="px-2 py-1 bg-gray-300 rounded dark:bg-gray-700"
+          >
+            +
+          </button>
+          <button
+            onClick={handleZoomOut}
+            className="px-2 py-1 bg-gray-300 rounded dark:bg-gray-700"
+          >
+            -
+          </button>
+        </div>
       </div>
     </div>
   );
