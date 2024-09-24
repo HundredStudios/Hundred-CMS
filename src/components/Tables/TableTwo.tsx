@@ -1,88 +1,61 @@
-import { useState } from "react";
+'use client'
+import { useEffect, useState } from 'react';
+import { createClient } from '@supabase/supabase-js';
 
-const tasksData = [
-  { title: "Tasks Completed", progress: 75 },
-  { title: "Progress", progress: 50 },
-  { title: "Reported Bugs", bugs: ["Bug 1: Issue with login", "Bug 2: UI misalignment"] },
-  { title: "To-Do Tasks", tasks: ["Task 1: Update documentation", "Task 2: Fix bugs", "Task 3: Prepare release notes"] },
-];
-
-const ProgressBar = ({ progress }) => {
-  return (
-    <div className="w-full bg-gray-200 rounded-full">
-      <div
-        className="bg-blue-600 h-2 rounded-full"
-        style={{ width: `${progress}%` }}
-      />
-    </div>
-  );
-};
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL ?? '';
+const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? '';
+const supabase = createClient(supabaseUrl, supabaseKey);
 
 const TableTwo = () => {
+  const [linksData, setLinksData] = useState([]);
+
+  useEffect(() => {
+    const fetchLinks = async () => {
+      const { data, error } = await supabase
+        .from('links')
+        .select('id, type, link, description');
+      if (error) {
+        console.error('Error fetching links:', error);
+      } else {
+        setLinksData(data);
+      }
+    };
+    
+    fetchLinks();
+  }, []);
+
   return (
-    <div className="rounded-sm border border-stroke bg-white px-5 pb-2.5 pt-6 shadow-default dark:border-strokedark dark:bg-boxdark sm:px-7.5 xl:pb-1">
-      <h4 className="mb-6 text-xl font-semibold text-black dark:text-white">
-        Project Overview
-      </h4>
+    <div className="rounded-sm border border-stroke bg-white px-5 pb-2.5 pt-6 shadow-default dark:border-strokedark dark:bg-boxdark sm:px-7.5 xl:pb-1 min-h-screen">
+      
 
-      {/* Top Row with Icon and Project Name */}
-      <div className="flex items-center justify-between mb-4">
-        <div className="flex items-center">
-          <img src="/path/to/icon.svg" alt="Project Icon" className="h-8 w-8 mr-2" />
-          <span className="text-lg font-medium text-black dark:text-white">Project Name</span>
-        </div>
-        <div className="flex items-center">
-          {/* Add your right-side icons here */}
-          <img src="/path/to/icon1.svg" alt="Icon 1" className="h-6 w-6 mx-1" />
-          <img src="/path/to/icon2.svg" alt="Icon 2" className="h-6 w-6 mx-1" />
-        </div>
-      </div>
-
-      {/* Content Rows */}
-      <div className="flex flex-col">
-        {tasksData.map((task, key) => (
-          <div
-            className={`flex flex-col border-b border-stroke dark:border-strokedark pb-4 ${
-              key === tasksData.length - 1 ? "" : "mb-4"
-            }`}
-            key={key}
-          >
-            <h5 className="text-lg font-medium text-black dark:text-white mb-2">
-              {task.title}
-            </h5>
-            
-            {task.progress !== undefined ? (
-              <ProgressBar progress={task.progress} />
-            ) : (
-              <div className="flex justify-between items-start">
-                <div>
-                  {task.bugs && (
-                    <ul className="list-disc pl-5 mb-2">
-                      {task.bugs.map((bug, index) => (
-                        <li key={index} className="text-black dark:text-white">
-                          {bug}
-                        </li>
-                      ))}
-                    </ul>
-                  )}
-                  {task.tasks && (
-                    <ul className="list-disc pl-5">
-                      {task.tasks.map((task, index) => (
-                        <li key={index} className="text-black dark:text-white">
-                          {task}
-                        </li>
-                      ))}
-                    </ul>
-                  )}
-                </div>
-                <div className="text-right">
-                  {/* Add a link here */}
-                  <a href="#" className="text-blue-500 hover:underline">View More</a>
-                </div>
-              </div>
-            )}
-          </div>
-        ))}
+      {/* Links Table */}
+      <div className="overflow-x-auto">
+        <table className="min-w-full table-auto">
+          <thead>
+            <tr>
+              <th className="px-4 py-2 text-left text-sm font-medium text-black dark:text-white">Type</th>
+              <th className="px-4 py-2 text-left text-sm font-medium text-black dark:text-white">Link</th>
+              <th className="px-4 py-2 text-left text-sm font-medium text-black dark:text-white">Description</th>
+            </tr>
+          </thead>
+          <tbody>
+            {linksData.map((link) => (
+              <tr key={link.id} className="border-b border-stroke dark:border-strokedark">
+                <td className="px-4 py-2 text-sm text-black dark:text-white">
+                  {link.type}
+                </td>
+                <td className="px-4 py-2 text-sm text-blue-500 dark:text-blue-400">
+                  <a href={link.link} target="_blank" rel="noopener noreferrer" className="hover:underline">
+                    {link.link}
+                  </a>
+                </td>
+                <td className="px-4 py-2 text-sm text-black dark:text-white">
+                  {link.description || 'No description available'}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
       </div>
     </div>
   );

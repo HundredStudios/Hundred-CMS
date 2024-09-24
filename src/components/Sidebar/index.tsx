@@ -7,14 +7,47 @@ import Image from "next/image";
 import SidebarItem from "@/components/Sidebar/SidebarItem";
 import ClickOutside from "@/components/ClickOutside";
 import useLocalStorage from "@/hooks/useLocalStorage";
-import { supabase } from '../../lib/supabseClient';
+/* import { supabase } from '../../lib/supabseClient'; */
 import { useRouter } from 'next/navigation';
 import { FaRegMessage } from "react-icons/fa6";
+import { createClient } from '@supabase/supabase-js';
+
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL ?? '';
+const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? '';
+const supabase = createClient(supabaseUrl, supabaseKey);
 interface SidebarProps {
   sidebarOpen: boolean;
   setSidebarOpen: (arg: boolean) => void;
 }
+const MessagesIcon = () => {
+  const [hasUnreadMessages, setHasUnreadMessages] = useState(false);
 
+  useEffect(() => {
+    const fetchUnreadMessages = async () => {
+      const { data, error } = await supabase
+        .from('contacts')
+        .select('id')
+        .eq('read', false);  // Get all unread messages
+
+      if (error) {
+        console.error('Error fetching unread messages:', error);
+      } else {
+        setHasUnreadMessages(data.length > 0);  // If there are any unread messages
+      }
+    };
+
+    fetchUnreadMessages();
+  }, []);  // Empty dependency array ensures this runs only once when the component mounts
+
+  return (
+    <div className="relative">
+      <FaRegMessage className="text-xl" />
+      {hasUnreadMessages && (
+        <span className="absolute -top-0.5 -right-0.5 block h-2 w-2 rounded-full bg-red">{<span className="absolute -z-1 inline-flex h-full w-full animate-ping rounded-full bg-meta-1 opacity-75"></span>}</span>
+      )}
+    </div>
+  );
+};
 const menuGroups = [
   {
     name: "MENU",
@@ -159,13 +192,11 @@ const menuGroups = [
         label: "Profile",
         route: "/profile",
       },
-       {
-        icon: (
-          <FaRegMessage />
-        ),
-        label: "Messages",
-        route: "/messages",
-      }, 
+      {
+        icon: <MessagesIcon />,  // Use the component with the red dot logic
+        label: 'Messages',
+        route: '/messages',
+      },
     ],
   },
   /*{

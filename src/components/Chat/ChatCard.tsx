@@ -212,12 +212,13 @@ const ChatCard: React.FC = () => {
                 <div key={message.id} className="mb-2">
                   <div className={`flex ${message.user_id === user?.id ? 'justify-end' : 'justify-start'}`}>
                     <div className={`flex ${message.user_id === user?.id ? 'flex-row-reverse' : 'flex-row'} items-end max-w-[80%]`}>
-                      <div className="flex-shrink-0 h-8 w-8 rounded-full overflow-hidden">
+                      <div className="flex-shrink-0 h-8 w-8 rounded-full overflow-hidden mb-6">
                         <Image
                           width={32}
                           height={32}
                           src={message.profiles?.avatar_url || '/images/user/user-01.png'}
                           alt={message.profiles?.username || 'User'}
+                          
                         />
                       </div>
                       <div className={`flex flex-col ${message.user_id === user?.id ? 'items-end mr-2' : 'items-start ml-2'}`}>
