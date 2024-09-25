@@ -15,41 +15,44 @@ const Profile = () => {
   const router = useRouter();
   const tasks = ["Design new UI components", "Fix bugs in dashboard", "Update documentation"];
 
+
+  
+
   useEffect(() => {
+    const getProfile = async () => {
+      try {
+        setLoading(true);
+        const { data: { user } } = await supabase.auth.getUser();
+  
+        if (!user) {
+          router.push('/login');
+          return;
+        }
+  
+        let { data, error, status } = await supabase
+          .from('profiles')
+          .select('name, avatar_url')
+          .eq('user_id', user.id)
+          .single();
+  
+        if (error && status !== 406) {
+          throw error;
+        }
+  
+        if (data) {
+          setName(data.name || '');
+          setProfileImage(data.avatar_url || '/images/user/user-06.png');
+        }
+      } catch (error) {
+        console.error('Error loading user data!', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+  
     getProfile();
-  }, []);
-
-  const getProfile = async () => {
-    try {
-      setLoading(true);
-      const { data: { user } } = await supabase.auth.getUser();
-
-      if (!user) {
-        router.push('/login');
-        return;
-      }
-
-      let { data, error, status } = await supabase
-        .from('profiles')
-        .select('name, avatar_url')
-        .eq('user_id', user.id)
-        .single();
-
-      if (error && status !== 406) {
-        throw error;
-      }
-
-      if (data) {
-        setName(data.name || '');
-        setProfileImage(data.avatar_url || '/images/user/user-06.png');
-      }
-    } catch (error) {
-      console.error('Error loading user data!', error);
-    } finally {
-      setLoading(false);
-    }
-  };
-
+  }, [router]);
+  
 const updateProfile = async (newAvatarUrl = null) => {
   try {
     setLoading(true);
