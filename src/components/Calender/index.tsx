@@ -1,7 +1,15 @@
 "use client";
 import React, { useState, useEffect } from "react";
+import { createClient } from '@supabase/supabase-js';
 import Breadcrumb from "../Breadcrumbs/Breadcrumb";
 import TaskOverlay from "./TaskOverlay";
+
+
+
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL ?? '';
+const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? '';
+const supabase = createClient(supabaseUrl, supabaseKey);
+
 
 const Calendar = () => {
   const [tasks, setTasks] = useState([]);
@@ -12,6 +20,12 @@ const Calendar = () => {
   useEffect(() => {
     generateCalendarDays();
   }, [currentDate]);
+
+  useEffect(() => {
+    if (calendarDays.length > 0) {
+      fetchTasks();
+    }
+  }, [calendarDays]);
 
   const generateCalendarDays = () => {
     const year = currentDate.getFullYear();
@@ -34,26 +48,101 @@ const Calendar = () => {
     }
 
     setCalendarDays(days);
+    console.log("Calendar days generated:", days);
   };
 
-  const addTask = (newTask) => {
-    setTasks([...tasks, newTask]);
-    setShowOverlay(false);
+  const fetchTasks = async () => {
+    if (calendarDays.length === 0) {
+      console.error('Calendar days not set');
+      return;
+    }
+
+    const endDate = calendarDays[calendarDays.length - 1].toISOString().split('T')[0];
+    console.log("Fetching tasks up to:", endDate);
+
+    try {
+      // Fetch bugs
+      const { data: bugs, error: bugsError } = await supabase
+        .from('bugs')
+        .select('*')
+        .eq('done', false)
+        .lte('deadline', endDate);
+
+      if (bugsError) throw bugsError;
+      console.log("Fetched bugs:", bugs);
+
+      // Fetch todos
+      const { data: todos, error: todosError } = await supabase
+        .from('todo')
+        .select('*')
+        .eq('done', false)
+        .lte('deadline', endDate);
+
+      if (todosError) throw todosError;
+      console.log("Fetched todos:", todos);
+
+      const allTasks = [...(bugs || []), ...(todos || [])].map(task => ({
+        ...task,
+        type: task.hasOwnProperty('severity') ? 'bug' : 'todo'
+      }));
+
+      console.log("All tasks:", allTasks);
+      setTasks(allTasks);
+    } catch (error) {
+      console.error('Error fetching tasks:', error);
+    }
+  };
+
+
+
+  const markTaskAsDone = async (taskId, taskType) => {
+    const table = taskType === 'bug' ? 'bugs' : 'todo';
+    try {
+      const { error } = await supabase
+        .from(table)
+        .update({ done: true })
+        .eq('id', taskId);
+
+      if (error) throw error;
+      
+      fetchTasks(); // Refresh tasks after marking as done
+    } catch (error) {
+      console.error('Error updating task:', error);
+    }
   };
 
   const renderTask = (date) => {
-    const task = tasks.find((t) => t.date === date.toISOString().split('T')[0]);
-    if (task) {
+   /*  console.log("Rendering tasks for date:", date.toISOString().split('T')[0]); */
+    const tasksForDate = tasks.filter(t => {
+      const taskDeadline = new Date(t.deadline);
+      const isSameDate = taskDeadline.toISOString().split('T')[0] === date.toISOString().split('T')[0];
+      console.log("Task:", t.title, "Deadline:", t.deadline, "Is on this date:", isSameDate);
+      return isSameDate;
+    });
+
+    /* console.log("Tasks for date:", tasksForDate); */
+
+    if (tasksForDate.length > 0) {
       return (
         <div className="group h-16 w-full flex-grow cursor-pointer py-1 md:h-30">
-          <span className="group-hover:text-primary md:hidden">More</span>
+          <span className="group-hover:text-primary md:hidden">{tasksForDate.length} task(s)</span>
           <div className="event invisible absolute left-2 z-99 mb-1 flex w-[200%] flex-col rounded-sm border-l-[3px] border-primary bg-gray px-3 py-1 text-left opacity-0 group-hover:visible group-hover:opacity-100 dark:bg-meta-4 md:visible md:w-[190%] md:opacity-100">
-            <span className="event-name text-sm font-semibold text-black dark:text-white">
-              {task.title}
-            </span>
-            <span className="time text-sm font-medium text-black dark:text-white">
-              {task.date}
-            </span>
+            {tasksForDate.map((task, index) => (
+              <div key={index} className="mb-1">
+                <span className="event-name text-sm font-semibold text-black dark:text-white">
+                  {task.title || task.description}
+                </span>
+                <span className="time text-sm font-medium text-black dark:text-white ml-2">
+                  (Due: {new Date(task.deadline).toLocaleDateString()})
+                </span>
+                <button
+                  onClick={() => markTaskAsDone(task.id, task.type)}
+                  className="ml-2 text-xs text-blue-500 hover:text-blue-700"
+                >
+                  Mark as Done
+                </button>
+              </div>
+            ))}
           </div>
         </div>
       );
@@ -102,27 +191,36 @@ const Calendar = () => {
 
   const renderOutOfScopeTasks = () => {
     const outOfScopeTasks = tasks.filter(task => {
-      const taskDate = new Date(task.date);
-      return taskDate < calendarDays[0] || taskDate > calendarDays[calendarDays.length - 1];
+      const taskDate = new Date(task.deadline);
+      return taskDate > calendarDays[calendarDays.length - 1];
     });
 
     if (outOfScopeTasks.length === 0) return null;
 
     return (
       <div className="mt-8">
-        <h2 className="mb-4 text-xl font-bold">Tasks not mentioned on the calender</h2>
+        <h2 className="mb-4 text-xl font-bold">Tasks with deadlines beyond this calendar view</h2>
         <table className="w-full">
           <thead>
             <tr className="bg-primary text-white">
-              <th className="p-2">Date</th>
+              <th className="p-2">Deadline</th>
               <th className="p-2">Title</th>
+              <th className="p-2">Action</th>
             </tr>
           </thead>
           <tbody>
             {outOfScopeTasks.map((task, index) => (
               <tr key={index} className={index % 2 === 0 ? 'bg-gray-100' : ''}>
-                <td className="p-2">{task.date}</td>
-                <td className="p-2">{task.title}</td>
+                <td className="p-2">{new Date(task.deadline).toLocaleDateString()}</td>
+                <td className="p-2">{task.title || task.description}</td>
+                <td className="p-2">
+                  <button
+                    onClick={() => markTaskAsDone(task.id, task.type)}
+                    className="text-blue-500 hover:text-blue-700"
+                  >
+                    Mark as Done
+                  </button>
+                </td>
               </tr>
             ))}
           </tbody>
@@ -177,7 +275,7 @@ const Calendar = () => {
       {renderOutOfScopeTasks()}
 
       {showOverlay && (
-        <TaskOverlay onAddTask={addTask} onClose={() => setShowOverlay(false)} />
+        <TaskOverlay onAddTask={fetchTasks} onClose={() => setShowOverlay(false)} />
       )}
     </div>
   );

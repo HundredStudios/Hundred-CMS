@@ -1,14 +1,62 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
+import { createClient } from '@supabase/supabase-js';
 
-const TaskOverlay = ({ onAddTask, onClose }) => {
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL ?? '';
+const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? '';
+const supabase = createClient(supabaseUrl, supabaseKey);
+
+
+const TaskOverlay = ({ onClose }) => {
   const [title, setTitle] = useState("");
-  const [date, setDate] = useState("");
+  const [deadline, setDeadline] = useState("");
+  const [project, setProject] = useState("");
+  const [taskType, setTaskType] = useState("todo"); // default to 'todo'
+  const [projects, setProjects] = useState([]);
 
-  const handleSubmit = (e) => {
+  // Fetch project data from Supabase
+  useEffect(() => {
+    const fetchProjects = async () => {
+      const { data, error } = await supabase.from("projects").select("name");
+
+      if (error) {
+        console.error("Error fetching projects:", error);
+      } else {
+        setProjects(data);
+      }
+    };
+
+    fetchProjects();
+  }, []);
+
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    onAddTask({ title, date });
+
+    const taskData = {
+      project_name: project,
+      deadline,
+    };
+
+    // Insert into the respective table based on taskType (todo/bug)
+    if (taskType === "todo") {
+      const todoData = { ...taskData, todo: title }; // update title in 'todo' column
+      const { data, error } = await supabase.from("todo").insert([todoData]);
+      if (error) {
+        console.error("Error inserting into todo table:", error);
+      }
+    } else if (taskType === "bug") {
+      const bugData = { ...taskData, bug: title }; // update title in 'bug' column
+      const { data, error } = await supabase.from("bug").insert([bugData]);
+      if (error) {
+        console.error("Error inserting into bug table:", error);
+      }
+    }
+
+    // Reset form after submission
     setTitle("");
-    setDate("");
+    setDeadline("");
+    setProject("");
+    setTaskType("todo");
+    onClose();
   };
 
   return (
@@ -18,7 +66,7 @@ const TaskOverlay = ({ onAddTask, onClose }) => {
         <form onSubmit={handleSubmit}>
           <div className="mb-4">
             <label htmlFor="title" className="mb-2 block font-bold">
-              Title
+              Task Title
             </label>
             <input
               type="text"
@@ -29,19 +77,59 @@ const TaskOverlay = ({ onAddTask, onClose }) => {
               required
             />
           </div>
+
           <div className="mb-4">
-            <label htmlFor="date" className="mb-2 block font-bold">
+            <label htmlFor="project" className="mb-2 block font-bold">
+              Project
+            </label>
+            <select
+              id="project"
+              value={project}
+              onChange={(e) => setProject(e.target.value)}
+              className="w-full rounded border px-3 py-2 dark:bg-meta-4"
+              required
+            >
+              <option value="" disabled>
+                Select a project
+              </option>
+              {projects.map((proj) => (
+                <option key={proj.name} value={proj.name}>
+                  {proj.name}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div className="mb-4">
+            <label htmlFor="taskType" className="mb-2 block font-bold">
+              Task Type
+            </label>
+            <select
+              id="taskType"
+              value={taskType}
+              onChange={(e) => setTaskType(e.target.value)}
+              className="w-full rounded border px-3 py-2 dark:bg-meta-4"
+              required
+            >
+              <option value="todo">ToDo</option>
+              <option value="bug">Bug</option>
+            </select>
+          </div>
+
+          <div className="mb-4">
+            <label htmlFor="deadline" className="mb-2 block font-bold">
               Deadline
             </label>
             <input
               type="date"
-              id="date"
-              value={date}
-              onChange={(e) => setDate(e.target.value)}
+              id="deadline"
+              value={deadline}
+              onChange={(e) => setDeadline(e.target.value)}
               className="w-full rounded border px-3 py-2 dark:bg-meta-4"
               required
             />
           </div>
+
           <div className="flex justify-end">
             <button
               type="button"
