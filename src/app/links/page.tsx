@@ -1,5 +1,5 @@
 'use client'
-import { useState } from "react";
+import { useState, ChangeEvent, FormEvent } from "react";
 import Breadcrumb from "@/components/Breadcrumbs/Breadcrumb";
 import TableTwo from "@/components/Tables/TableTwo";
 import DefaultLayout from "@/components/Layouts/DefaultLayout";
@@ -19,20 +19,20 @@ const TablesPage = () => {
   });
 
   // Handle form input changes
-  const handleInputChange = (e) => {
+  const handleInputChange = (e: ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
     setFormData((prevData) => ({ ...prevData, [name]: value }));
   };
 
   // Handle form submission
-  const handleSubmit = async (e) => {
+  const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-
+  
     // Insert data into Supabase
     const { data, error } = await supabase
       .from("links")
       .insert([formData]);
-
+  
     if (error) {
       console.error("Error inserting data:", error);
     } else {

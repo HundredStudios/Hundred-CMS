@@ -103,41 +103,43 @@ const updateProfile = async (newAvatarUrl = null) => {
       const fileExt = file.name.split('.').pop();
       const fileName = `${Math.random()}.${fileExt}`;
       const filePath = `${Date.now()}_${fileName}`;
-
+  
       setUploadingImage(true);
-
+  
       try {
         const { data: { user } } = await supabase.auth.getUser();
         if (!user) throw new Error('No user logged in');
-
+  
         // Upload the image to Supabase Storage
         let { error: uploadError } = await supabase.storage
           .from('avatars')
           .upload(filePath, file);
-
+  
         if (uploadError) {
           throw uploadError;
         }
-
-        // Get the public URL of the uploaded image
-        const { data: { publicUrl }, error: urlError } = supabase.storage
+  
+        // Get the public URL of the uploaded image (without destructuring `error`)
+        const { data } = supabase.storage
           .from('avatars')
           .getPublicUrl(filePath);
-
-        if (urlError) {
-          throw urlError;
+  
+        const publicUrl = data?.publicUrl;
+  
+        if (!publicUrl) {
+          throw new Error("Failed to get public URL");
         }
-
+  
         // Update the user's profile with the new avatar URL
         const { error: updateError } = await supabase
           .from('profiles')
           .update({ avatar_url: publicUrl })
           .eq('user_id', user.id);
-
+  
         if (updateError) {
           throw updateError;
         }
-
+  
         // Update local state
         setProfileImage(publicUrl);
         alert('Profile image updated successfully!');
@@ -149,6 +151,8 @@ const updateProfile = async (newAvatarUrl = null) => {
       }
     }
   };
+  
+  
 
   if (loading) {
     return <div>Loading...</div>;

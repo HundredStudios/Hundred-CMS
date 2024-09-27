@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import Image from 'next/image';
 import { createClient } from '@supabase/supabase-js';
 
@@ -34,25 +34,11 @@ const ChatCard: React.FC = () => {
   const [user, setUser] = useState<User | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
-  useEffect(() => {
-    getUser();
-    fetchMessagesAndProfiles();
-    const subscription = subscribeToMessages();
-
-    return () => {
-      subscription.unsubscribe();
-    };
+  const scrollToBottom = useCallback(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, []);
 
-  useEffect(() => {
-    scrollToBottom();
-  }, [groupedMessages]);
-
-  const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  };
-
-  const getUser = async () => {
+  const getUser = useCallback(async () => {
     try {
       const { data: { user }, error: userError } = await supabase.auth.getUser();
       if (userError) throw userError;
@@ -77,9 +63,39 @@ const ChatCard: React.FC = () => {
     } catch (error) {
       console.error('Error fetching user data:', error);
     }
-  };
+  }, []);
 
-  const fetchMessagesAndProfiles = async () => {
+  const groupMessagesByDate = useCallback((messages: Message[]) => {
+    const grouped = messages.reduce((groups: GroupedMessage[], message) => {
+      const date = new Date(message.created_at).toLocaleDateString();
+      const group = groups.find(g => g.date === date);
+      if (group) {
+        group.messages.push(message);
+      } else {
+        groups.push({ date, messages: [message] });
+      }
+      return groups;
+    }, []);
+    setGroupedMessages(grouped);
+  }, []);
+
+  const addMessageToGroup = useCallback((newMessage: Message) => {
+    setGroupedMessages(prevGroups => {
+      const date = new Date(newMessage.created_at).toLocaleDateString();
+      const lastGroup = prevGroups[prevGroups.length - 1];
+      
+      if (lastGroup && lastGroup.date === date) {
+        return [
+          ...prevGroups.slice(0, -1),
+          { ...lastGroup, messages: [...lastGroup.messages, newMessage] }
+        ];
+      } else {
+        return [...prevGroups, { date, messages: [newMessage] }];
+      }
+    });
+  }, []);
+
+  const fetchMessagesAndProfiles = useCallback(async () => {
     try {
       const { data: messagesData, error: messagesError } = await supabase
         .from('messages')
@@ -95,12 +111,12 @@ const ChatCard: React.FC = () => {
 
         if (profilesError) throw profilesError;
 
-        const profilesMap = profilesData.reduce((map: any, profile: any) => {
-          map[profile.user_id] = profile;
+        const profilesMap = profilesData.reduce((map: Record<string, { username: string; avatar_url: string }>, profile) => {
+          map[profile.user_id] = { username: profile.username, avatar_url: profile.avatar_url };
           return map;
         }, {});
 
-        const messagesWithProfiles = messagesData.map((message: Message) => ({
+        const messagesWithProfiles = messagesData.map((message: Omit<Message, 'profiles'>) => ({
           ...message,
           profiles: profilesMap[message.user_id] || null,
         }));
@@ -110,23 +126,9 @@ const ChatCard: React.FC = () => {
     } catch (error) {
       console.error('Error fetching messages and profiles:', error);
     }
-  };
+  }, [groupMessagesByDate]);
 
-  const groupMessagesByDate = (messages: Message[]) => {
-    const grouped = messages.reduce((groups: GroupedMessage[], message) => {
-      const date = new Date(message.created_at).toLocaleDateString();
-      const group = groups.find(g => g.date === date);
-      if (group) {
-        group.messages.push(message);
-      } else {
-        groups.push({ date, messages: [message] });
-      }
-      return groups;
-    }, []);
-    setGroupedMessages(grouped);
-  };
-
-  const subscribeToMessages = () => {
+  const subscribeToMessages = useCallback(() => {
     try {
       return supabase
         .channel('public:messages')
@@ -148,28 +150,30 @@ const ChatCard: React.FC = () => {
     } catch (error) {
       console.error('Error subscribing to messages:', error);
     }
-  };
+  }, [addMessageToGroup]);
 
-  const addMessageToGroup = (newMessage: Message) => {
-    setGroupedMessages(prevGroups => {
-      const date = new Date(newMessage.created_at).toLocaleDateString();
-      const lastGroup = prevGroups[prevGroups.length - 1];
-      
-      if (lastGroup && lastGroup.date === date) {
-        return [
-          ...prevGroups.slice(0, -1),
-          { ...lastGroup, messages: [...lastGroup.messages, newMessage] }
-        ];
-      } else {
-        return [...prevGroups, { date, messages: [newMessage] }];
+  useEffect(() => {
+    getUser();
+    fetchMessagesAndProfiles();
+    const subscription = subscribeToMessages();
+  
+    return () => {
+      // Check if subscription is defined before calling unsubscribe
+      if (subscription) {
+        subscription.unsubscribe();
       }
-    });
-  };
+    };
+  }, [getUser, fetchMessagesAndProfiles, subscribeToMessages]);
+  
+
+  useEffect(() => {
+    scrollToBottom();
+  }, [groupedMessages, scrollToBottom]);
 
   const sendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!user || !newMessage.trim()) return;
-  
+
     try {
       const { error } = await supabase
         .from('messages')
@@ -178,9 +182,9 @@ const ChatCard: React.FC = () => {
           content: newMessage.trim(),
           created_at: new Date().toISOString(),
         });
-  
+
       if (error) throw error;
-  
+
       setNewMessage('');
     } catch (error) {
       console.error('Error sending message:', error);
@@ -218,7 +222,6 @@ const ChatCard: React.FC = () => {
                           height={32}
                           src={message.profiles?.avatar_url || '/images/user/user-01.png'}
                           alt={message.profiles?.username || 'User'}
-                          
                         />
                       </div>
                       <div className={`flex flex-col ${message.user_id === user?.id ? 'items-end mr-2' : 'items-start ml-2'}`}>
@@ -251,13 +254,10 @@ const ChatCard: React.FC = () => {
             type="text"
             value={newMessage}
             onChange={(e) => setNewMessage(e.target.value)}
-            placeholder="Type a message..."
-            className="flex-grow mr-2 p-2 border rounded-md"
+            placeholder="Type your message..."
+            className="flex-grow border rounded-lg p-2 mr-2"
           />
-          <button
-            type="submit"
-            className="bg-primary text-white px-4 py-2 rounded-md"
-          >
+          <button type="submit" className="bg-blue-500 text-white px-4 py-2 rounded-lg">
             Send
           </button>
         </form>

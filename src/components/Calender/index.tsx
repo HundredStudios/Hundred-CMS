@@ -1,33 +1,20 @@
 "use client";
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { createClient } from '@supabase/supabase-js';
 import Breadcrumb from "../Breadcrumbs/Breadcrumb";
 import TaskOverlay from "./TaskOverlay";
-
-
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL ?? '';
 const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? '';
 const supabase = createClient(supabaseUrl, supabaseKey);
 
-
 const Calendar = () => {
-  const [tasks, setTasks] = useState([]);
+  const [tasks, setTasks] = useState<any[]>([]);
   const [showOverlay, setShowOverlay] = useState(false);
-  const [currentDate, setCurrentDate] = useState(new Date());
-  const [calendarDays, setCalendarDays] = useState([]);
+  const [currentDate, setCurrentDate] = useState<Date>(new Date());
+  const [calendarDays, setCalendarDays] = useState<Date[]>([]);
 
-  useEffect(() => {
-    generateCalendarDays();
-  }, [currentDate]);
-
-  useEffect(() => {
-    if (calendarDays.length > 0) {
-      fetchTasks();
-    }
-  }, [calendarDays]);
-
-  const generateCalendarDays = () => {
+  const generateCalendarDays = useCallback(() => {
     const year = currentDate.getFullYear();
     const month = currentDate.getMonth();
     const firstDayOfMonth = new Date(year, month, 1);
@@ -39,7 +26,7 @@ const Calendar = () => {
     const endDate = new Date(lastDayOfMonth);
     endDate.setDate(endDate.getDate() + (6 - endDate.getDay()));
 
-    const days = [];
+    const days: Date[] = [];
     let currentDay = new Date(startDate);
 
     while (currentDay <= endDate) {
@@ -48,54 +35,47 @@ const Calendar = () => {
     }
 
     setCalendarDays(days);
-    console.log("Calendar days generated:", days);
-  };
+  }, [currentDate]);
 
-  const fetchTasks = async () => {
+  const fetchTasks = useCallback(async () => {
     if (calendarDays.length === 0) {
       console.error('Calendar days not set');
       return;
     }
 
     const endDate = calendarDays[calendarDays.length - 1].toISOString().split('T')[0];
-    console.log("Fetching tasks up to:", endDate);
 
     try {
-      // Fetch bugs
-      const { data: bugs, error: bugsError } = await supabase
-        .from('bugs')
-        .select('*')
-        .eq('done', false)
-        .lte('deadline', endDate);
+      const [{ data: bugs, error: bugsError }, { data: todos, error: todosError }] = await Promise.all([
+        supabase.from('bugs').select('*').eq('done', false).lte('deadline', endDate),
+        supabase.from('todo').select('*').eq('done', false).lte('deadline', endDate)
+      ]);
 
       if (bugsError) throw bugsError;
-      console.log("Fetched bugs:", bugs);
-
-      // Fetch todos
-      const { data: todos, error: todosError } = await supabase
-        .from('todo')
-        .select('*')
-        .eq('done', false)
-        .lte('deadline', endDate);
-
       if (todosError) throw todosError;
-      console.log("Fetched todos:", todos);
 
       const allTasks = [...(bugs || []), ...(todos || [])].map(task => ({
         ...task,
         type: task.hasOwnProperty('severity') ? 'bug' : 'todo'
       }));
 
-      console.log("All tasks:", allTasks);
       setTasks(allTasks);
     } catch (error) {
       console.error('Error fetching tasks:', error);
     }
-  };
+  }, [calendarDays]);
 
+  useEffect(() => {
+    generateCalendarDays();
+  }, [generateCalendarDays]);
 
+  useEffect(() => {
+    if (calendarDays.length > 0) {
+      fetchTasks();
+    }
+  }, [calendarDays, fetchTasks]);
 
-  const markTaskAsDone = async (taskId, taskType) => {
+  const markTaskAsDone = async (taskId: number, taskType: string) => {
     const table = taskType === 'bug' ? 'bugs' : 'todo';
     try {
       const { error } = await supabase
@@ -104,23 +84,18 @@ const Calendar = () => {
         .eq('id', taskId);
 
       if (error) throw error;
-      
-      fetchTasks(); // Refresh tasks after marking as done
+
+      fetchTasks();
     } catch (error) {
       console.error('Error updating task:', error);
     }
   };
 
-  const renderTask = (date) => {
-   /*  console.log("Rendering tasks for date:", date.toISOString().split('T')[0]); */
+  const renderTask = (date: Date) => {
     const tasksForDate = tasks.filter(t => {
       const taskDeadline = new Date(t.deadline);
-      const isSameDate = taskDeadline.toISOString().split('T')[0] === date.toISOString().split('T')[0];
-      console.log("Task:", t.title, "Deadline:", t.deadline, "Is on this date:", isSameDate);
-      return isSameDate;
+      return taskDeadline.toISOString().split('T')[0] === date.toISOString().split('T')[0];
     });
-
-    /* console.log("Tasks for date:", tasksForDate); */
 
     if (tasksForDate.length > 0) {
       return (
@@ -229,54 +204,45 @@ const Calendar = () => {
     );
   };
 
-  const getMonthName = (date) => {
+  const getMonthName = (date: Date): string => {
     return date.toLocaleString('default', { month: 'long' });
   };
 
-  return (
-    <div className="mx-auto max-w-7xl">
-      <Breadcrumb pageName={`Calendar - ${getMonthName(currentDate)} ${currentDate.getFullYear()}`} />
+  const handlePreviousMonth = () => {
+    setCurrentDate(prevDate => {
+      const newDate = new Date(prevDate);
+      newDate.setMonth(newDate.getMonth() - 1);
+      return newDate;
+    });
+  };
 
-      <div className="mb-4 flex justify-between items-center">
-        <button
-          onClick={() => setShowOverlay(true)}
-          className="rounded bg-primary px-4 py-2 text-white hover:bg-opacity-90"
-        >
-          Add Task
-        </button>
+  const handleNextMonth = () => {
+    setCurrentDate(prevDate => {
+      const newDate = new Date(prevDate);
+      newDate.setMonth(newDate.getMonth() + 1);
+      return newDate;
+    });
+  };
+
+  return (
+    <div className="p-4">
+      <div className="flex items-center justify-between mb-4">
+        <h1 className="text-2xl font-bold">{getMonthName(currentDate)} {currentDate.getFullYear()}</h1>
         <div>
-          <button
-            onClick={() => {
-              const newDate = new Date(currentDate);
-              newDate.setMonth(newDate.getMonth() - 1);
-              setCurrentDate(newDate);
-            }}
-            className="mr-2 rounded bg-gray-200 px-4 py-2 text-gray-700 hover:bg-gray-300"
-          >
-            Previous Month
-          </button>
-          <button
-            onClick={() => {
-              const newDate = new Date(currentDate);
-              newDate.setMonth(newDate.getMonth() + 1);
-              setCurrentDate(newDate);
-            }}
-            className="rounded bg-gray-200 px-4 py-2 text-gray-700 hover:bg-gray-300"
-          >
-            Next Month
-          </button>
+          <button onClick={handlePreviousMonth} className="mx-2 text-blue-500 hover:underline">Previous</button>
+          <button onClick={handleNextMonth} className="mx-2 text-blue-500 hover:underline">Next</button>
         </div>
       </div>
-
-      <div className="w-full max-w-full rounded-sm border border-stroke bg-white shadow-default dark:border-strokedark dark:bg-boxdark">
-        {renderCalendar()}
-      </div>
-
+      {/* <Breadcrumb /> */}
+      <button 
+        onClick={() => setShowOverlay(true)} 
+        className="mb-4 px-4 py-2 bg-primary text-white rounded-md hover:bg-primary-300"
+      >
+        Add Task
+      </button>
+      {renderCalendar()}
       {renderOutOfScopeTasks()}
-
-      {showOverlay && (
-        <TaskOverlay onAddTask={fetchTasks} onClose={() => setShowOverlay(false)} />
-      )}
+      {showOverlay && <TaskOverlay onClose={() => setShowOverlay(false)} />}
     </div>
   );
 };

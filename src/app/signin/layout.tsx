@@ -1,7 +1,10 @@
-// app/auth/signin/layout.tsx
-import React from 'react';
+import React, { ReactNode } from 'react';
 
-const SignInLayout = ({ children }) => {
+interface SignInLayoutProps {
+  children: ReactNode;
+}
+
+const SignInLayout = ({ children }: SignInLayoutProps) => {
     return (
         <div className="signin-layout">
             {children} {/* This will render the Sign-In component */}

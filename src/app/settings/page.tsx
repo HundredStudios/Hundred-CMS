@@ -3,7 +3,7 @@ import Breadcrumb from "@/components/Breadcrumbs/Breadcrumb";
 import DefaultLayout from "@/components/Layouts/DefaultLayout";
 import { useRouter } from "next/navigation";
 import { supabase } from "../../lib/supabseClient";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 
 const Settings = () => {
   const [loading, setLoading] = useState(true);
@@ -14,30 +14,28 @@ const Settings = () => {
   const [usrname, setUsrname] = useState("");
   const [note, setNote] = useState("");
 
-  useEffect(() => {
-    getProfile();
-  }, []);
 
-  const getProfile = async () => {
+
+  const getProfile = useCallback(async () => {
     try {
       setLoading(true);
       const { data: { user } } = await supabase.auth.getUser();
-
+  
       if (!user) {
         router.push("/login");
         return;
       }
-
+  
       const { data, error, status } = await supabase
         .from("profiles")
         .select("name, phone_number, email, username, note")
         .eq("user_id", user.id)
         .single();
-
+  
       if (error && status !== 406) {
         throw error;
       }
-
+  
       if (data) {
         setName(data.name || "");
         setNum(data.phone_number || "");
@@ -50,19 +48,22 @@ const Settings = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [router]);
+  useEffect(() => {
+    getProfile();
+  }, [getProfile]);
 
-  const updateProfile = async (e) => {
+  const updateProfile = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     try {
       setLoading(true);
       const { data: { user } } = await supabase.auth.getUser();
-
+  
       if (!user) {
         router.push("/login");
         return;
       }
-
+  
       // Collect updates for fields
       const updates = {
         name,
@@ -71,22 +72,30 @@ const Settings = () => {
         username: usrname,
         note,
       };
-
+  
       const { error } = await supabase
         .from("profiles")
         .update(updates)
         .eq("user_id", user.id);
-
+  
       if (error) throw error;
-
+  
       alert("Profile updated successfully!");
     } catch (error) {
       console.error("Error updating profile:", error);
-      alert(`Error updating profile: ${error.message}`);
+    
+      // Check if the error is an instance of Error and access the message
+      if (error instanceof Error) {
+        alert(`Error updating profile: ${error.message}`);
+      } else {
+        // Fallback if the error is not an instance of Error
+        alert("An unknown error occurred while updating the profile.");
+      }
     } finally {
       setLoading(false);
     }
   };
+  
 
   return (
     <DefaultLayout>

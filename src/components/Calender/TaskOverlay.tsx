@@ -1,17 +1,22 @@
 import React, { useState, useEffect } from "react";
 import { createClient } from '@supabase/supabase-js';
 
+// Create Supabase client
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL ?? '';
 const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? '';
 const supabase = createClient(supabaseUrl, supabaseKey);
 
+// Define the props type for TaskOverlay
+interface TaskOverlayProps {
+  onClose: () => void;
+}
 
-const TaskOverlay = ({ onClose }) => {
-  const [title, setTitle] = useState("");
-  const [deadline, setDeadline] = useState("");
-  const [project, setProject] = useState("");
-  const [taskType, setTaskType] = useState("todo"); // default to 'todo'
-  const [projects, setProjects] = useState([]);
+const TaskOverlay: React.FC<TaskOverlayProps> = ({ onClose }) => {
+  const [title, setTitle] = useState<string>("");
+  const [deadline, setDeadline] = useState<string>("");
+  const [project, setProject] = useState<string>("");
+  const [taskType, setTaskType] = useState<string>("todo"); // default to 'todo'
+  const [projects, setProjects] = useState<{ name: string }[]>([]);
 
   // Fetch project data from Supabase
   useEffect(() => {
@@ -21,14 +26,14 @@ const TaskOverlay = ({ onClose }) => {
       if (error) {
         console.error("Error fetching projects:", error);
       } else {
-        setProjects(data);
+        setProjects(data || []);
       }
     };
 
     fetchProjects();
   }, []);
 
-  const handleSubmit = async (e) => {
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
 
     const taskData = {
@@ -37,26 +42,26 @@ const TaskOverlay = ({ onClose }) => {
     };
 
     // Insert into the respective table based on taskType (todo/bug)
-    if (taskType === "todo") {
-      const todoData = { ...taskData, todo: title }; // update title in 'todo' column
-      const { data, error } = await supabase.from("todo").insert([todoData]);
-      if (error) {
-        console.error("Error inserting into todo table:", error);
+    try {
+      if (taskType === "todo") {
+        const todoData = { ...taskData, todo: title }; // update title in 'todo' column
+        const { error } = await supabase.from("todo").insert([todoData]);
+        if (error) throw error;
+      } else if (taskType === "bug") {
+        const bugData = { ...taskData, bug: title }; // update title in 'bug' column
+        const { error } = await supabase.from("bug").insert([bugData]);
+        if (error) throw error;
       }
-    } else if (taskType === "bug") {
-      const bugData = { ...taskData, bug: title }; // update title in 'bug' column
-      const { data, error } = await supabase.from("bug").insert([bugData]);
-      if (error) {
-        console.error("Error inserting into bug table:", error);
-      }
-    }
 
-    // Reset form after submission
-    setTitle("");
-    setDeadline("");
-    setProject("");
-    setTaskType("todo");
-    onClose();
+      // Reset form after submission
+      setTitle("");
+      setDeadline("");
+      setProject("");
+      setTaskType("todo");
+      onClose();
+    } catch (error) {
+      console.error("Error inserting task:", error);
+    }
   };
 
   return (

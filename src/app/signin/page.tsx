@@ -11,14 +11,14 @@ const SignIn: React.FC = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const router = useRouter();
-  const handleSignIn = async (e) => {
+  const handleSignIn = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     try {
       const { error } = await supabase.auth.signInWithPassword({ email, password });
       if (error) throw error;
       router.push('/');
     } catch (error) {
-      alert(error.message);
+      alert((error as Error).message); // Cast to Error for message access
     }
   };
   return (
