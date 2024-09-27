@@ -25,37 +25,51 @@ const TableTwo = () => {
   }, []);
 
   return (
-    <div className="rounded-sm border border-stroke bg-white px-5 pb-2.5 pt-6 shadow-default dark:border-strokedark dark:bg-boxdark sm:px-7.5 xl:pb-1 min-h-screen">
-      
-
-      {/* Links Table */}
-      <div className="overflow-x-auto">
-        <table className="min-w-full table-auto">
-          <thead>
-            <tr>
-              <th className="px-4 py-2 text-left text-sm font-medium text-black dark:text-white">Type</th>
-              <th className="px-4 py-2 text-left text-sm font-medium text-black dark:text-white">Link</th>
-              <th className="px-4 py-2 text-left text-sm font-medium text-black dark:text-white">Description</th>
-            </tr>
-          </thead>
-          <tbody>
-            {linksData.map((link) => (
-              <tr key={link.id} className="border-b border-stroke dark:border-strokedark">
-                <td className="px-4 py-2 text-sm text-black dark:text-white">
-                  {link.type}
-                </td>
-                <td className="px-4 py-2 text-sm text-blue-500 dark:text-blue-400">
-                  <a href={link.link} target="_blank" rel="noopener noreferrer" className="hover:underline">
-                    {link.link}
-                  </a>
-                </td>
-                <td className="px-4 py-2 text-sm text-black dark:text-white">
-                  {link.description || 'No description available'}
-                </td>
+    <div className="rounded-sm border border-stroke bg-white shadow-default dark:border-strokedark dark:bg-boxdark h-full flex flex-col">
+      <div className="p-4 sm:p-6 xl:p-7.5 flex-grow overflow-hidden">
+        <div className="max-h-full overflow-y-auto">
+          <table className="w-full table-auto">
+            <thead className="sticky top-0 bg-gray-2 dark:bg-meta-4">
+              <tr className="text-left">
+                <th className="min-w-[120px] py-4 px-4 font-medium text-black dark:text-white xl:pl-11">
+                  Type
+                </th>
+                <th className="min-w-[120px] py-4 px-4 font-medium text-black dark:text-white">
+                  Link
+                </th>
+                <th className="min-w-[120px] py-4 px-4 font-medium text-black dark:text-white">
+                  Description
+                </th>
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {linksData.map((link) => (
+                <tr key={link.id}>
+                  <td className="border-b border-[#eee] py-5 px-4 pl-9 dark:border-strokedark xl:pl-11">
+                    <h5 className="font-medium text-black dark:text-white">
+                      {link.type}
+                    </h5>
+                  </td>
+                  <td className="border-b border-[#eee] py-5 px-4 dark:border-strokedark">
+                    <a
+                      href={link.link}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-blue-500 dark:text-blue-400 hover:underline break-all"
+                    >
+                      {link.link}
+                    </a>
+                  </td>
+                  <td className="border-b border-[#eee] py-5 px-4 dark:border-strokedark">
+                    <p className="text-black dark:text-white">
+                      {link.description || 'No description available'}
+                    </p>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       </div>
     </div>
   );

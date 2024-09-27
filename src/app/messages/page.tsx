@@ -14,7 +14,7 @@ const TablesPage = () => {
     <DefaultLayout>
       <Breadcrumb pageName="Messages" />
 
-      <div className="flex flex-col gap-10">
+      <div className="flex flex-col gap-10 min-h-screen">
       
         <TableFour />
         

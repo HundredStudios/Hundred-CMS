@@ -44,30 +44,26 @@ const TablesPage = () => {
 
   return (
     <DefaultLayout>
-      <div className="flex justify-between items-center mb-6">
-      <Breadcrumb pageName="Links" />
+      <div className="container mx-auto px-4 sm:px-6 lg:px-8 max-w-screen-xl min-h-screen min-w-screen">
+        <div className="flex flex-col sm:flex-row justify-between items-center mb-6">
+          <Breadcrumb pageName="Links" />
+          <button
+            onClick={() => setShowOverlay(true)}
+            className="bg-primary text-white px-4 py-2 rounded-md mt-4 sm:mt-0"
+          >
+            Add Link
+          </button>
+        </div>
 
-      
-        {/* Breadcrumb on the left */}
-        
-
-        {/* Add Link Button on the right */}
-        <button
-          onClick={() => setShowOverlay(true)}
-          className="bg-primary text-white px-4 py-2 rounded-md mb-6"
-        >
-          Add Link
-        </button>
-      </div>
-
-      <div className="flex flex-col gap-10">
-        <TableTwo />
+        <div className="w-full overflow-hidden">
+          <TableTwo />
+        </div>
       </div>
 
       {/* Overlay for the form */}
       {showOverlay && (
         <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50 z-50">
-          <div className="bg-white dark:bg-boxdark p-6 rounded-lg shadow-lg w-full max-w-md">
+          <div className="bg-white dark:bg-boxdark p-6 rounded-lg shadow-lg w-full max-w-md mx-4">
             <h2 className="text-xl font-semibold mb-4 text-black dark:text-white">
               Add New Link
             </h2>

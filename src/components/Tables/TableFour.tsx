@@ -2,7 +2,6 @@
 import React, { useState, useEffect } from 'react';
 import { createClient } from '@supabase/supabase-js';
 
-// Replace with your Supabase project URL and anon key
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL ?? '';
 const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? '';
 const supabase = createClient(supabaseUrl, supabaseKey);
@@ -24,7 +23,6 @@ const ContactsTable = () => {
         .order('date', { ascending: false });
 
       if (error) throw error;
-      console.log('Fetched contacts:', data); // Add this line for debugging
       setContacts(data);
     } catch (error) {
       console.error('Error fetching contacts:', error);
@@ -91,68 +89,66 @@ const ContactsTable = () => {
   };
 
   if (loading) {
-    return <div>Loading contacts...</div>;
+    return <div className="text-center py-4">Loading contacts...</div>;
   }
 
   return (
-    <div className="rounded-sm border border-stroke bg-white px-5 pb-2.5 pt-6 shadow-default dark:border-strokedark dark:bg-boxdark sm:px-7.5 xl:pb-1">
+    <div className="rounded-sm border border-stroke bg-white shadow-default dark:border-strokedark dark:bg-boxdark overflow-hidden">
       <div className="max-w-full overflow-x-auto">
         <table className="w-full table-auto">
-          <thead>
-            <tr className="bg-gray-2 text-left dark:bg-meta-4">
-              <th className="min-w-[150px] px-4 py-4 font-medium text-black dark:text-white">
-                Name
+          <thead className="bg-gray-2 text-left dark:bg-meta-4">
+            <tr>
+              <th className="py-4 px-4 font-medium text-black dark:text-white">
+                Contact Details
               </th>
-              <th className="min-w-[150px] px-4 py-4 font-medium text-black dark:text-white">
-                Email
-              </th>
-              <th className="min-w-[120px] px-4 py-4 font-medium text-black dark:text-white">
-                Reason
-              </th>
-              <th className="min-w-[300px] px-4 py-4 font-medium text-black dark:text-white">
+              <th className="py-4 px-4 font-medium text-black dark:text-white hidden sm:table-cell">
                 Message
               </th>
-              <th className="min-w-[120px] px-4 py-4 font-medium text-black dark:text-white">
+              <th className="py-4 px-4 font-medium text-black dark:text-white hidden lg:table-cell">
                 Date
               </th>
-              <th className="px-4 py-4 font-medium text-black dark:text-white">
+              <th className="py-4 px-4 font-medium text-black dark:text-white">
                 Read
               </th>
             </tr>
           </thead>
           <tbody>
             {contacts.map((contact) => (
-              <tr key={contact.id}>
-                <td className="border-b border-[#eee] px-4 py-5 dark:border-strokedark">
-                  <h5 className="font-medium text-black dark:text-white">
-                    {contact.name}
-                  </h5>
+              <tr key={contact.id} className="border-b border-[#eee] dark:border-strokedark">
+                <td className="py-5 px-4">
+                  <div className="flex flex-col">
+                    <h5 className="font-medium text-black dark:text-white">
+                      {contact.name}
+                    </h5>
+                    <p className="text-sm text-black dark:text-white">
+                      {contact.email}
+                    </p>
+                    <p className="text-sm text-black dark:text-white mt-1">
+                      Reason: {contact.reason}
+                    </p>
+                    <div className="sm:hidden mt-2">
+                      {renderMessage(contact.message, contact.id)}
+                    </div>
+                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-1 lg:hidden">
+                      {new Date(contact.date).toLocaleString()}
+                    </p>
+                  </div>
                 </td>
-                <td className="border-b border-[#eee] px-4 py-5 dark:border-strokedark">
-                  <p className="text-black dark:text-white">
-                    {contact.email}
-                  </p>
-                </td>
-                <td className="border-b border-[#eee] px-4 py-5 dark:border-strokedark">
-                  <p className="text-black dark:text-white">
-                    {contact.reason}
-                  </p>
-                </td>
-                <td className="border-b border-[#eee] px-4 py-5 dark:border-strokedark">
+                <td className="py-5 px-4 hidden sm:table-cell">
                   {renderMessage(contact.message, contact.id)}
                 </td>
-                <td className="border-b border-[#eee] px-4 py-5 dark:border-strokedark">
+                <td className="py-5 px-4 hidden lg:table-cell">
                   <p className="text-black dark:text-white">
                     {new Date(contact.date).toLocaleString()}
                   </p>
                 </td>
-                <td className="border-b border-[#eee] px-4 py-5 dark:border-strokedark">
-                  <div className="flex items-center">
+                <td className="py-5 px-4">
+                  <div className="flex items-center justify-center">
                     <input
-                      type="radio"
+                      type="checkbox"
                       checked={contact.read}
                       onChange={() => handleReadChange(contact.id, contact.read)}
-                      className="form-radio h-5 w-5 text-blue-600"
+                      className="form-checkbox h-5 w-5 text-blue-600"
                     />
                   </div>
                 </td>
