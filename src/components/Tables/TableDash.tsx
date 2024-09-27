@@ -6,7 +6,11 @@ const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL ?? '';
 const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? '';
 const supabase = createClient(supabaseUrl, supabaseKey);
 
-const ProgressBar = ({ progress }) => {
+interface ProgressBarProps {
+  progress: number;
+}
+
+const ProgressBar: React.FC<ProgressBarProps> = ({ progress }) => {
   return (
     <div className="w-full bg-gray-300 dark:bg-gray-800 rounded-full h-3">
       <div
@@ -17,20 +21,33 @@ const ProgressBar = ({ progress }) => {
   );
 };
 
-const ProjectTable = () => {
-  const [projects, setProjects] = useState([]);
-  const [selectedProject, setSelectedProject] = useState(null);
-  const [bugs, setBugs] = useState([]);
-  const [todos, setTodos] = useState([]);
-  const messagesEndRef = useRef(null);
+interface Project {
+  name: string;
+  status: string;
+}
+
+interface Bug {
+  bug: string;
+}
+
+interface Todo {
+  todo: string;
+}
+
+const ProjectTable: React.FC = () => {
+  const [projects, setProjects] = useState<Project[]>([]);
+  const [selectedProject, setSelectedProject] = useState<Project | null>(null);
+  const [bugs, setBugs] = useState<Bug[]>([]);
+  const [todos, setTodos] = useState<Todo[]>([]);
+  const messagesEndRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
     const fetchProjects = async () => {
       const { data, error } = await supabase.from('projects').select('*');
       if (error) console.error('Error fetching projects:', error);
       else {
-        setProjects(data);
-        if (data.length > 0) setSelectedProject(data[0]);
+        setProjects(data as Project[]);
+        if (data.length > 0) setSelectedProject(data[0] as Project);
       }
     };
     fetchProjects();
@@ -44,22 +61,22 @@ const ProjectTable = () => {
           .select('bug')
           .eq('project_name', selectedProject.name);
         if (bugsError) console.error('Error fetching bugs:', bugsError);
-        else setBugs(bugsData);
+        else setBugs(bugsData as Bug[]);
 
         const { data: todosData, error: todosError } = await supabase
           .from('todo')
           .select('todo')
           .eq('project_name', selectedProject.name);
         if (todosError) console.error('Error fetching todos:', todosError);
-        else setTodos(todosData);
+        else setTodos(todosData as Todo[]);
       }
     };
     fetchBugsAndTodos();
   }, [selectedProject]);
 
-  const handleProjectChange = (event) => {
-    const project = projects.find((p) => p.name === event.target.value);
-    setSelectedProject(project);
+  const handleProjectChange = (event: React.ChangeEvent<HTMLSelectElement>) => {
+    const project = projects.find((p) => p.name === event.target.value) as Project; 
+    setSelectedProject(project ?? null);
   };
 
   return (
@@ -88,7 +105,6 @@ const ProjectTable = () => {
               <tr className="bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300">
                 <th className="text-left py-4 px-6 font-semibold text-sm">Project Name</th>
                 <th className="text-left py-4 px-6 font-semibold text-sm">Status</th>
-                
               </tr>
             </thead>
             <tbody>
@@ -96,15 +112,6 @@ const ProjectTable = () => {
                 <tr className="border-t border-gray-200 dark:border-strokedark">
                   <td className="py-4 px-6">{selectedProject.name}</td>
                   <td className="py-4 px-6">{selectedProject.status}</td>
-                  {/* <td className="py-4 px-6">
-                    {selectedProject.status === 'T-Stop' ? (
-                      <span className="text-red-500 dark:text-red-400">
-                        This project is temporarily stopped.
-                      </span>
-                    ) : (
-                      
-                    )}
-                  </td> */}
                 </tr>
               )}
             </tbody>

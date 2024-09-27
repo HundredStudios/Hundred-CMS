@@ -6,10 +6,20 @@ const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL ?? '';
 const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? '';
 const supabase = createClient(supabaseUrl, supabaseKey);
 
+interface Contact {
+  id: number;
+  name: string;
+  email: string;
+  reason: string;
+  message: string;
+  read: boolean;
+  date: string; // Use Date type if needed
+}
+
 const ContactsTable = () => {
-  const [contacts, setContacts] = useState([]);
+  const [contacts, setContacts] = useState<Contact[]>([]);
   const [loading, setLoading] = useState(true);
-  const [expandedMessages, setExpandedMessages] = useState({});
+  const [expandedMessages, setExpandedMessages] = useState<Record<number, boolean>>({});
 
   useEffect(() => {
     fetchContacts();
@@ -18,7 +28,7 @@ const ContactsTable = () => {
   const fetchContacts = async () => {
     try {
       const { data, error } = await supabase
-        .from('contacts')
+        .from<Contact>('contacts') // specify type here
         .select('id, name, email, reason, message, read, date')
         .order('date', { ascending: false });
 
@@ -31,7 +41,7 @@ const ContactsTable = () => {
     }
   };
 
-  const handleReadChange = async (id, currentReadStatus) => {
+  const handleReadChange = async (id: number, currentReadStatus: boolean) => {
     try {
       const { error } = await supabase
         .from('contacts')
@@ -40,22 +50,24 @@ const ContactsTable = () => {
 
       if (error) throw error;
 
-      setContacts(contacts.map(contact => 
-        contact.id === id ? { ...contact, read: !currentReadStatus } : contact
-      ));
+      setContacts(prevContacts =>
+        prevContacts.map(contact =>
+          contact.id === id ? { ...contact, read: !currentReadStatus } : contact
+        )
+      );
     } catch (error) {
       console.error('Error updating contact read status:', error);
     }
   };
 
-  const toggleMessageExpansion = (id) => {
+  const toggleMessageExpansion = (id: number) => {
     setExpandedMessages(prev => ({
       ...prev,
       [id]: !prev[id]
     }));
   };
 
-  const renderMessage = (message, id) => {
+  const renderMessage = (message: string, id: number) => {
     if (!message) return <p className="text-black dark:text-white">No message</p>;
 
     if (message.length <= 100 || expandedMessages[id]) {

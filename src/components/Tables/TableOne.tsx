@@ -7,29 +7,47 @@ const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL ?? '';
 const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? '';
 const supabase = createClient(supabaseUrl, supabaseKey);
 
+// Define types for your data
+interface Bug {
+  bug: string;
+}
 
+interface Todo {
+  todo: string;
+}
 
-const ProjectTable = ({ project }) => {
-  const [bugs, setBugs] = useState([]);
-  const [todos, setTodos] = useState([]);
+interface Project {
+  id: string;
+  name: string;
+  status: string;
+}
+
+// Define the props for ProjectTable
+interface ProjectTableProps {
+  project: Project;
+}
+
+const ProjectTable: React.FC<ProjectTableProps> = ({ project }) => {
+  const [bugs, setBugs] = useState<Bug[]>([]);
+  const [todos, setTodos] = useState<Todo[]>([]);
 
   useEffect(() => {
     const fetchBugsAndTodos = async () => {
       const { data: bugsData, error: bugsError } = await supabase
-        .from('bugs')
+        .from<Bug>('bugs') // Table name and expected row type
         .select('bug')
         .eq('project_name', project.name);
 
       if (bugsError) console.error('Error fetching bugs:', bugsError);
-      else setBugs(bugsData);
+      else if (bugsData) setBugs(bugsData);
 
       const { data: todosData, error: todosError } = await supabase
-        .from('todo')
+        .from<Todo>('todo') // Table name and expected row type
         .select('todo')
         .eq('project_name', project.name);
 
       if (todosError) console.error('Error fetching todos:', todosError);
-      else setTodos(todosData);
+      else if (todosData) setTodos(todosData);
     };
 
     fetchBugsAndTodos();
@@ -45,8 +63,6 @@ const ProjectTable = ({ project }) => {
         <p className="text-red mb-6">This project is temporarily stopped.</p>
       ) : (
         <div className="flex flex-col">
-         
-
           {(project.status === 'U-Dev' || project.status === 'O-Prod') && (
             <div className="flex flex-col border-b border-stroke dark:border-strokedark pb-4 mb-4">
               <h5 className="text-lg font-medium text-black dark:text-white mb-2">
@@ -82,17 +98,17 @@ const ProjectTable = ({ project }) => {
   );
 };
 
-const ProjectTables = () => {
-  const [projects, setProjects] = useState([]);
+const ProjectTables: React.FC = () => {
+  const [projects, setProjects] = useState<Project[]>([]);
 
   useEffect(() => {
     const fetchProjects = async () => {
       const { data, error } = await supabase
-        .from('projects')
+        .from<Project>('projects') // Table name and expected row type
         .select('*');
 
       if (error) console.error('Error fetching projects:', error);
-      else setProjects(data);
+      else if (data) setProjects(data);
     };
 
     fetchProjects();

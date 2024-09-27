@@ -6,18 +6,28 @@ const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL ?? '';
 const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? '';
 const supabase = createClient(supabaseUrl, supabaseKey);
 
+// Define an interface for the link data
+interface Link {
+  id: number; // Adjust type if 'id' is not a number
+  type: string;
+  link: string;
+  description: string | null; // Can be null if no description
+}
+
 const TableTwo = () => {
-  const [linksData, setLinksData] = useState([]);
+  // Specify the type of the state
+  const [linksData, setLinksData] = useState<Link[]>([]);
 
   useEffect(() => {
     const fetchLinks = async () => {
       const { data, error } = await supabase
         .from('links')
         .select('id, type, link, description');
+
       if (error) {
         console.error('Error fetching links:', error);
       } else {
-        setLinksData(data);
+        setLinksData(data as Link[]); // Assert the data type here
       }
     };
     

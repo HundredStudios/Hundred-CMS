@@ -1,18 +1,17 @@
-"use client";
 import React, { useState } from "react";
 import { ComposableMap, Geographies, Geography, ZoomableGroup } from "react-simple-maps";
-import nepalGeoJson from "../../data/nepal-districts.json"; // Make sure to have a valid Nepal districts GeoJSON
+import nepalGeoJson from "../../data/nepal-districts.json"; // Ensure valid GeoJSON
 
 const MapOne: React.FC = () => {
   const [position, setPosition] = useState({ coordinates: [83.9416, 28.3949], zoom: 2 });
 
   const handleZoomIn = () => {
-    if (position.zoom >= 4) return; // Limit the max zoom level
+    if (position.zoom >= 4) return; // Limit max zoom level
     setPosition((pos) => ({ ...pos, zoom: pos.zoom * 1.5 }));
   };
 
   const handleZoomOut = () => {
-    if (position.zoom <= 1) return; // Limit the minimum zoom level
+    if (position.zoom <= 1) return; // Limit min zoom level
     setPosition((pos) => ({ ...pos, zoom: pos.zoom / 1.5 }));
   };
 
@@ -25,7 +24,7 @@ const MapOne: React.FC = () => {
       <h4 className="mb-2 text-xl font-semibold text-black dark:text-white">
         Nepal Districts
       </h4>
-      <div className="relative h-[500px] w-full"> {/* Ensure size is suitable */}
+      <div className="relative h-[500px] w-full">
         <ComposableMap
           projection="geoMercator"
           projectionConfig={{
@@ -43,7 +42,7 @@ const MapOne: React.FC = () => {
             onMoveEnd={handleMoveEnd}
           >
             <Geographies geography={nepalGeoJson}>
-              {({ geographies }) =>
+              {({ geographies }: { geographies: any[] }) => // Provide type for geographies
                 geographies.map((geo) => (
                   <Geography
                     key={geo.rsmKey}
