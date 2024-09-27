@@ -1,14 +1,22 @@
 'use client';
 import React, { useState, useEffect } from 'react';
-import { createClient } from '@supabase/supabase-js';
+import { createClient, SupabaseClient } from '@supabase/supabase-js';
 
 // Replace with your Supabase project URL and anon key
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL ?? '';
 const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? '';
-const supabase = createClient(supabaseUrl, supabaseKey);
+const supabase: SupabaseClient = createClient(supabaseUrl, supabaseKey);
 
-const ProjectsTable = () => {
-  const [projects, setProjects] = useState([]);
+interface Project {
+  id: number;
+  name: string;
+  start_date: string;
+  status: string;
+  hidden?: boolean;
+}
+
+const ProjectsTable: React.FC = () => {
+  const [projects, setProjects] = useState<Project[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -23,7 +31,7 @@ const ProjectsTable = () => {
         .order('start_date', { ascending: false });
 
       if (error) throw error;
-      setProjects(data);
+      setProjects(data as Project[]);
     } catch (error) {
       console.error('Error fetching projects:', error);
     } finally {
@@ -31,13 +39,13 @@ const ProjectsTable = () => {
     }
   };
 
-  const handleEyeClick = (id) => {
+  const handleEyeClick = (id: number) => {
     setProjects(projects.map(project => 
       project.id === id ? { ...project, hidden: !project.hidden } : project
     ));
   };
 
-  const getStatusClass = (status) => {
+  const getStatusClass = (status: string): string => {
     switch (status) {
       case 'O-Prod': return 'bg-success text-success';
       case 'T-Stop': return 'bg-danger text-danger';
