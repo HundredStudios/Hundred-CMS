@@ -1,10 +1,10 @@
 'use client';
 import React, { useState, useEffect } from 'react';
-import { createClient } from '@supabase/supabase-js';
+import { createClient, SupabaseClient } from '@supabase/supabase-js';
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL ?? '';
 const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? '';
-const supabase = createClient(supabaseUrl, supabaseKey);
+const supabase: SupabaseClient = createClient(supabaseUrl, supabaseKey);
 
 interface Contact {
   id: number;
@@ -16,7 +16,7 @@ interface Contact {
   date: string; // Use Date type if needed
 }
 
-const ContactsTable = () => {
+const ContactsTable: React.FC = () => {
   const [contacts, setContacts] = useState<Contact[]>([]);
   const [loading, setLoading] = useState(true);
   const [expandedMessages, setExpandedMessages] = useState<Record<number, boolean>>({});
@@ -28,12 +28,12 @@ const ContactsTable = () => {
   const fetchContacts = async () => {
     try {
       const { data, error } = await supabase
-        .from<Contact>('contacts') // specify type here
+        .from('contacts')
         .select('id, name, email, reason, message, read, date')
         .order('date', { ascending: false });
 
       if (error) throw error;
-      setContacts(data);
+      setContacts(data as Contact[]);
     } catch (error) {
       console.error('Error fetching contacts:', error);
     } finally {

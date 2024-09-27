@@ -1,11 +1,11 @@
 'use client';
 import React, { useState, useEffect } from 'react';
-import { createClient } from '@supabase/supabase-js';
+import { createClient, SupabaseClient } from '@supabase/supabase-js';
 
 // Initialize Supabase client
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL ?? '';
 const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? '';
-const supabase = createClient(supabaseUrl, supabaseKey);
+const supabase: SupabaseClient = createClient(supabaseUrl, supabaseKey);
 
 // Define types for your data
 interface Bug {
@@ -34,20 +34,20 @@ const ProjectTable: React.FC<ProjectTableProps> = ({ project }) => {
   useEffect(() => {
     const fetchBugsAndTodos = async () => {
       const { data: bugsData, error: bugsError } = await supabase
-        .from<Bug>('bugs') // Table name and expected row type
+        .from('bugs')
         .select('bug')
         .eq('project_name', project.name);
 
       if (bugsError) console.error('Error fetching bugs:', bugsError);
-      else if (bugsData) setBugs(bugsData);
+      else if (bugsData) setBugs(bugsData as Bug[]);
 
       const { data: todosData, error: todosError } = await supabase
-        .from<Todo>('todo') // Table name and expected row type
+        .from('todo')
         .select('todo')
         .eq('project_name', project.name);
 
       if (todosError) console.error('Error fetching todos:', todosError);
-      else if (todosData) setTodos(todosData);
+      else if (todosData) setTodos(todosData as Todo[]);
     };
 
     fetchBugsAndTodos();
@@ -104,11 +104,11 @@ const ProjectTables: React.FC = () => {
   useEffect(() => {
     const fetchProjects = async () => {
       const { data, error } = await supabase
-        .from<Project>('projects') // Table name and expected row type
+        .from('projects')
         .select('*');
 
       if (error) console.error('Error fetching projects:', error);
-      else if (data) setProjects(data);
+      else if (data) setProjects(data as Project[]);
     };
 
     fetchProjects();
