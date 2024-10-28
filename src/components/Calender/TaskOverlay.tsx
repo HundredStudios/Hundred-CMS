@@ -49,7 +49,7 @@ const TaskOverlay: React.FC<TaskOverlayProps> = ({ onClose }) => {
         if (error) throw error;
       } else if (taskType === "bug") {
         const bugData = { ...taskData, bug: title }; // update title in 'bug' column
-        const { error } = await supabase.from("bug").insert([bugData]);
+        const { error } = await supabase.from("bugs").insert([bugData]);
         if (error) throw error;
       }
 

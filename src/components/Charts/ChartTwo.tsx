@@ -1,148 +1,294 @@
 "use client";
 
-import { ApexOptions } from "apexcharts";
-import React from "react";
-import dynamic from "next/dynamic";
+import React, { useEffect, useState } from "react";
+import { createClient } from "@supabase/supabase-js";
+import { motion, AnimatePresence } from "framer-motion";
+import { ChevronRight, Circle, CheckCircle2, User } from "lucide-react";
 
-const ReactApexChart = dynamic(() => import("react-apexcharts"), {
-  ssr: false,
-});
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL ?? '';
+const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? '';
+const supabase = createClient(supabaseUrl, supabaseKey);
 
-const options: ApexOptions = {
-  colors: ["#3C50E0", "#80CAEE"],
-  chart: {
-    fontFamily: "Satoshi, sans-serif",
-    type: "bar",
-    height: 335,
-    stacked: true,
-    toolbar: {
-      show: false,
-    },
-    zoom: {
-      enabled: false,
-    },
-  },
-
-  responsive: [
-    {
-      breakpoint: 1536,
-      options: {
-        plotOptions: {
-          bar: {
-            borderRadius: 0,
-            columnWidth: "25%",
-          },
-        },
-      },
-    },
-  ],
-  plotOptions: {
-    bar: {
-      horizontal: false,
-      borderRadius: 0,
-      columnWidth: "25%",
-      borderRadiusApplication: "end",
-      borderRadiusWhenStacked: "last",
-    },
-  },
-  dataLabels: {
-    enabled: false,
-  },
-
-  xaxis: {
-    categories: ["M", "T", "W", "T", "F", "S", "S"],
-  },
-  legend: {
-    position: "top",
-    horizontalAlign: "left",
-    fontFamily: "Satoshi",
-    fontWeight: 500,
-    fontSize: "14px",
-
-    markers: {
-      radius: 99,
-    },
-  },
-  fill: {
-    opacity: 1,
-  },
-};
-
-interface ChartTwoState {
-  series: {
-    name: string;
-    data: number[];
-  }[];
+interface BugData {
+  id: number;
+  bugs: string;
+  project_name: string;
+  takenBy: string | null;
+  done: boolean;
 }
 
-const ChartTwo: React.FC = () => {
-  const series = [
-    {
-      name: "Sales",
-      data: [44, 55, 41, 67, 22, 43, 65],
-    },
-    {
-      name: "Revenue",
-      data: [13, 23, 20, 8, 13, 27, 15],
-    },
-  ];
+interface TodoData {
+  id: number;
+  todo: string;
+  project_name: string;
+  takenBy: string | null;
+  done: boolean;
+}
 
-  return (
-    <div className="col-span-12 rounded-sm border border-stroke bg-white p-7.5 shadow-default dark:border-strokedark dark:bg-boxdark xl:col-span-4">
-      <div className="mb-4 justify-between gap-4 sm:flex">
-        <div>
-          <h4 className="text-xl font-semibold text-black dark:text-white">
-            Profit this week
-          </h4>
-        </div>
-        <div>
-          <div className="relative z-20 inline-block">
-            <select
-              name="#"
-              id="#"
-              className="relative z-20 inline-flex appearance-none bg-transparent py-1 pl-3 pr-8 text-sm font-medium outline-none"
+const dropdownVariants = {
+  hidden: { 
+    opacity: 0,
+    height: 0,
+    transition: { duration: 0.2, ease: "easeInOut" }
+  },
+  visible: {
+    opacity: 1,
+    height: "auto",
+    transition: { duration: 0.2, ease: "easeInOut" }
+  }
+};
+
+const buttonVariants = {
+  initial: { scale: 1 },
+  hover: { scale: 1.02, transition: { duration: 0.2 } },
+  tap: { scale: 0.98, transition: { duration: 0.1 } }
+};
+
+const ChartTwo: React.FC = () => {
+  const [bugs, setBugs] = useState<BugData[]>([]);
+  const [todos, setTodos] = useState<TodoData[]>([]);
+  const [bugDropdownIndex, setBugDropdownIndex] = useState<number | null>(null);
+  const [todoDropdownIndex, setTodoDropdownIndex] = useState<number | null>(null);
+  const [currentUser, setCurrentUser] = useState<string | null>(null);
+
+  useEffect(() => {
+    const fetchUserData = async () => {
+      const { data: userData, error: userError } = await supabase.auth.getUser();
+      
+      if (userError) {
+        console.error("Error fetching user data:", userError);
+        return;
+      }
+      
+      if (userData.user) {
+        const { data: profile, error } = await supabase
+          .from("profiles")
+          .select("username")
+          .eq("user_id", userData.user.id)
+          .single();
+    
+        if (!error && profile) {
+          setCurrentUser(profile.username);
+        }
+      }
+    };
+
+    const fetchData = async () => {
+      const [bugsResult, todoResult] = await Promise.all([
+        supabase
+          .from("bugs")
+          .select("id, bugs, project_name, takenBy, done")
+          .eq("done", false),
+        supabase
+          .from("todo")
+          .select("id, todo, project_name, takenBy, done")
+          .eq("done", false)
+      ]);
+
+      if (bugsResult.error) {
+        console.error("Error fetching bugs:", bugsResult.error);
+      } else {
+        setBugs(bugsResult.data || []);
+      }
+
+      if (todoResult.error) {
+        console.error("Error fetching todos:", todoResult.error);
+      } else {
+        setTodos(todoResult.data || []);
+      }
+    };
+
+    fetchUserData();
+    fetchData();
+  }, []);
+
+  const handleTakeTask = async (task: BugData | TodoData, type: "bug" | "todo") => {
+    try {
+      const { error } = await supabase
+        .from(type === "bug" ? "bugs" : "todo")
+        .update({ takenBy: currentUser })
+        .eq("id", task.id);
+
+      if (error) {
+        console.error("Error taking task:", error);
+        return;
+      }
+
+      const updateState = (prevItems: any[]) => 
+        prevItems.map(item => 
+          item.id === task.id ? { ...item, takenBy: currentUser } : item
+        );
+
+      type === "bug" ? setBugs(updateState) : setTodos(updateState);
+    } catch (error) {
+      console.error("Failed to take task:", error);
+    }
+  };
+
+  const handleMarkDone = async (task: BugData | TodoData, type: "bug" | "todo") => {
+    try {
+      const { error } = await supabase
+        .from(type === "bug" ? "bugs" : "todo")
+        .update({ done: true })
+        .eq("id", task.id);
+
+      if (error) {
+        console.error("Error marking task as done:", error);
+        return;
+      }
+
+      const updateState = (prevItems: any[]) => 
+        prevItems.filter(item => item.id !== task.id);
+
+      type === "bug" ? setBugs(updateState) : setTodos(updateState);
+    } catch (error) {
+      console.error("Failed to mark task as done:", error);
+    }
+  };
+
+  const TaskActions = ({ task }: { task: BugData | TodoData }) => {
+    if (!task.takenBy) {
+      return (
+        <motion.button
+          variants={buttonVariants}
+          initial="initial"
+          whileHover="hover"
+          whileTap="tap"
+          className="flex items-center gap-2 text-blue-500 hover:text-blue-600 transition-colors duration-200"
+          onClick={() => handleTakeTask(task, 'bugs' in task ? "bug" : "todo")}
+        >
+          <Circle className="w-3 h-3" />
+          <span className="font-medium text-sm">Take Task</span>
+        </motion.button>
+      );
+    }
+
+    if (task.takenBy === currentUser) {
+      return (
+        <motion.button
+          variants={buttonVariants}
+          initial="initial"
+          whileHover="hover"
+          whileTap="tap"
+          className="flex items-center gap-2 text-green-500 hover:text-green-600 transition-colors duration-200"
+          onClick={() => handleMarkDone(task, 'bugs' in task ? "bug" : "todo")}
+        >
+          <CheckCircle2 className="w-3 h-3" />
+          <span className="font-medium text-sm">Done</span>
+        </motion.button>
+      );
+    }
+
+    return (
+      <div className="flex items-center gap-2 text-gray-400">
+        <User className="w-4 h-4" />
+        <span className="text-sm">Task taken by {task.takenBy}</span>
+      </div>
+    );
+  };
+
+  const TaskItem = ({ 
+    item, 
+    index, 
+    type,
+    isDropdownOpen,
+    onToggleDropdown 
+  }: {
+    item: BugData | TodoData;
+    index: number;
+    type: "bug" | "todo";
+    isDropdownOpen: boolean;
+    onToggleDropdown: () => void;
+  }) => (
+    <li className="mb-4 last:mb-0">
+      <div className="flex items-start gap-3">
+        <div className="mt-1.5 flex-shrink-0">
+          <motion.div
+            initial={false}
+            animate={{ rotate: isDropdownOpen ? 90 : 0 }}
+            transition={{ duration: 0.2 }}
+            className="w-4 h-4"
+          >
+            <button
+              onClick={onToggleDropdown}
+              className="text-white/70 hover:text-white transition-colors duration-200"
             >
-              <option value="" className="dark:bg-boxdark">
-                This Week
-              </option>
-              <option value="" className="dark:bg-boxdark">
-                Last Week
-              </option>
-            </select>
-            <span className="absolute right-3 top-1/2 z-10 -translate-y-1/2">
-              <svg
-                width="10"
-                height="6"
-                viewBox="0 0 10 6"
-                fill="none"
-                xmlns="http://www.w3.org/2000/svg"
-              >
-                <path
-                  d="M0.47072 1.08816C0.47072 1.02932 0.500141 0.955772 0.54427 0.911642C0.647241 0.808672 0.809051 0.808672 0.912022 0.896932L4.85431 4.60386C4.92785 4.67741 5.06025 4.67741 5.14851 4.60386L9.09079 0.896932C9.19376 0.793962 9.35557 0.808672 9.45854 0.911642C9.56151 1.01461 9.5468 1.17642 9.44383 1.27939L5.50155 4.98632C5.22206 5.23639 4.78076 5.23639 4.51598 4.98632L0.558981 1.27939C0.50014 1.22055 0.47072 1.16171 0.47072 1.08816Z"
-                  fill="#637381"
-                />
-                <path
-                  fillRule="evenodd"
-                  clipRule="evenodd"
-                  d="M1.22659 0.546578L5.00141 4.09604L8.76422 0.557869C9.08459 0.244537 9.54201 0.329403 9.79139 0.578788C10.112 0.899434 10.0277 1.36122 9.77668 1.61224L9.76644 1.62248L5.81552 5.33722C5.36257 5.74249 4.6445 5.7544 4.19352 5.32924C4.19327 5.32901 4.19377 5.32948 4.19352 5.32924L0.225953 1.61241C0.102762 1.48922 -4.20186e-08 1.31674 -3.20269e-08 1.08816C-2.40601e-08 0.905899 0.0780105 0.712197 0.211421 0.578787C0.494701 0.295506 0.935574 0.297138 1.21836 0.539529L1.22659 0.546578ZM4.51598 4.98632C4.78076 5.23639 5.22206 5.23639 5.50155 4.98632L9.44383 1.27939C9.5468 1.17642 9.56151 1.01461 9.45854 0.911642C9.35557 0.808672 9.19376 0.793962 9.09079 0.896932L5.14851 4.60386C5.06025 4.67741 4.92785 4.67741 4.85431 4.60386L0.912022 0.896932C0.809051 0.808672 0.647241 0.808672 0.54427 0.911642C0.500141 0.955772 0.47072 1.02932 0.47072 1.08816C0.47072 1.16171 0.50014 1.22055 0.558981 1.27939L4.51598 4.98632Z"
-                  fill="#637381"
-                />
-              </svg>
+              <ChevronRight className="w-4 h-4" />
+            </button>
+          </motion.div>
+        </div>
+        <div className="flex-1">
+          <div className="flex items-center">
+            <span className="text-sm text-white font-bold tracking-wide">
+              {type === "bug" ? (item as BugData).bugs : (item as TodoData).todo}
+            </span>
+            <span className="text-[10px] text-gray-400 ml-2 font-normal">
+              ({item.project_name})
             </span>
           </div>
+          <AnimatePresence mode="wait">
+            {isDropdownOpen && (
+              <motion.div
+                variants={dropdownVariants}
+                initial="hidden"
+                animate="visible"
+                exit="hidden"
+                className="ml-2 mt-3 overflow-hidden"
+              >
+                <TaskActions task={item} />
+              </motion.div>
+            )}
+          </AnimatePresence>
         </div>
+      </div>
+    </li>
+  );
+
+  const TaskList = ({ 
+    items, 
+    type, 
+    dropdownIndex, 
+    setDropdownIndex 
+  }: {
+    items: (BugData | TodoData)[];
+    type: "bug" | "todo";
+    dropdownIndex: number | null;
+    setDropdownIndex: (index: number | null) => void;
+  }) => (
+    <ul className="space-y-4">
+      {items.map((item, index) => (
+        <TaskItem
+          key={item.id}
+          item={item}
+          index={index}
+          type={type}
+          isDropdownOpen={dropdownIndex === index}
+          onToggleDropdown={() => setDropdownIndex(dropdownIndex === index ? null : index)}
+        />
+      ))}
+    </ul>
+  );
+
+  return (
+    <div className="col-span-12 rounded-sm border border-stroke bg-boxdark p-7.5 shadow-default dark:border-strokedark xl:col-span-4">
+      <div className="mb-8">
+        <h5 className="text-lg font-medium text-white mb-4">Bugs</h5>
+        <TaskList
+          items={bugs}
+          type="bug"
+          dropdownIndex={bugDropdownIndex}
+          setDropdownIndex={setBugDropdownIndex}
+        />
       </div>
 
       <div>
-        <div id="chartTwo" className="-mb-9 -ml-5">
-          <ReactApexChart
-            options={options}
-            series={series}
-            type="bar"
-            height={350}
-            width={"100%"}
-          />
-        </div>
+        <h5 className="text-lg font-medium text-white mb-4">To-Do Tasks</h5>
+        <TaskList
+          items={todos}
+          type="todo"
+          dropdownIndex={todoDropdownIndex}
+          setDropdownIndex={setTodoDropdownIndex}
+        />
       </div>
     </div>
   );
