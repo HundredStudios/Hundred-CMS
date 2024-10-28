@@ -43,12 +43,13 @@ const Calendar = () => {
       return;
     }
 
+    const startDate = calendarDays[0].toISOString().split('T')[0];
     const endDate = calendarDays[calendarDays.length - 1].toISOString().split('T')[0];
 
     try {
       const [{ data: bugs, error: bugsError }, { data: todos, error: todosError }] = await Promise.all([
-        supabase.from('bugs').select('*').eq('done', false).lte('deadline', endDate),
-        supabase.from('todo').select('*').eq('done', false).lte('deadline', endDate)
+        supabase.from('bugs').select('*').eq('done', false).gte('deadline', startDate).lte('deadline', endDate),
+        supabase.from('todo').select('*').eq('done', false).gte('deadline', startDate).lte('deadline', endDate)
       ]);
 
       if (bugsError) throw bugsError;
@@ -56,7 +57,8 @@ const Calendar = () => {
 
       const allTasks = [...(bugs || []), ...(todos || [])].map(task => ({
         ...task,
-        type: task.hasOwnProperty('severity') ? 'bug' : 'todo'
+        type: task.hasOwnProperty('severity') ? 'bug' : 'todo',
+        deadline: new Date(task.deadline).toISOString().split('T')[0] // Normalize deadline to YYYY-MM-DD
       }));
 
       setTasks(allTasks);
@@ -92,18 +94,16 @@ const Calendar = () => {
   };
 
   const renderTask = (date: Date) => {
-    const tasksForDate = tasks.filter(t => {
-      const taskDeadline = new Date(t.deadline);
-      return taskDeadline.toISOString().split('T')[0] === date.toISOString().split('T')[0];
-    });
-
+    const dateStr = date.toISOString().split('T')[0];
+    const tasksForDate = tasks.filter(t => t.deadline === dateStr);
+  
     if (tasksForDate.length > 0) {
       return (
         <div className="group h-16 w-full flex-grow cursor-pointer py-1 md:h-30">
           <span className="group-hover:text-primary md:hidden">{tasksForDate.length} task(s)</span>
-          <div className="event invisible absolute left-2 z-99 mb-1 flex w-[200%] flex-col rounded-sm border-l-[3px] border-primary bg-gray px-3 py-1 text-left opacity-0 group-hover:visible group-hover:opacity-100 dark:bg-meta-4 md:visible md:w-[190%] md:opacity-100">
+          <div className="event invisible absolute left-0 z-50 mb-1 flex w-full flex-col rounded-sm border-l-[3px] border-primary bg-gray px-3 py-1 text-left opacity-0 group-hover:visible group-hover:opacity-100 dark:bg-meta-4 md:visible md:opacity-100">
             {tasksForDate.map((task, index) => (
-              <div key={index} className="mb-1">
+              <div key={index} className="mb-1 last:mb-0">
                 <span className="event-name text-sm font-semibold text-black dark:text-white">
                   {task.title || task.description}
                 </span>
@@ -111,7 +111,10 @@ const Calendar = () => {
                   (Due: {new Date(task.deadline).toLocaleDateString()})
                 </span>
                 <button
-                  onClick={() => markTaskAsDone(task.id, task.type)}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    markTaskAsDone(task.id, task.type);
+                  }}
                   className="ml-2 text-xs text-blue-500 hover:text-blue-700"
                 >
                   Mark as Done
@@ -127,6 +130,8 @@ const Calendar = () => {
 
   const renderCalendar = () => {
     const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
     return (
       <table className="w-full">
         <thead>
@@ -142,21 +147,24 @@ const Calendar = () => {
         <tbody>
           {Array.from({ length: Math.ceil(calendarDays.length / 7) }).map((_, weekIndex) => (
             <tr key={weekIndex} className="grid grid-cols-7">
-              {calendarDays.slice(weekIndex * 7, (weekIndex + 1) * 7).map((day, dayIndex) => (
-                <td 
-                  key={dayIndex} 
-                  className={`ease relative h-20 cursor-pointer border border-stroke p-2 transition duration-500 hover:bg-gray dark:border-strokedark dark:hover:bg-meta-4 md:h-25 md:p-6 xl:h-31 ${
-                    day.getMonth() !== currentDate.getMonth() ? 'bg-gray-100' : ''
-                  } ${
-                    day.toDateString() === today.toDateString() ? 'bg-blue-100 dark:bg-blue-900' : ''
-                  }`}
-                >
-                  <span className={`font-medium ${day.getMonth() === currentDate.getMonth() ? 'text-black dark:text-white' : 'text-gray-400'}`}>
-                    {day.getDate()}
-                  </span>
-                  {renderTask(day)}
-                </td>
-              ))}
+              {calendarDays.slice(weekIndex * 7, (weekIndex + 1) * 7).map((day, dayIndex) => {
+                const isToday = day.toISOString().split('T')[0] === today.toISOString().split('T')[0];
+                return (
+                  <td 
+                    key={dayIndex} 
+                    className={`ease relative h-20 cursor-pointer border border-stroke p-2 transition duration-500 hover:bg-gray dark:border-strokedark dark:hover:bg-meta-4 md:h-25 md:p-6 xl:h-31 ${
+                      day.getMonth() !== currentDate.getMonth() ? 'bg-gray-100' : ''
+                    } ${
+                      isToday ? 'bg-blue-100 dark:bg-blue-900' : ''
+                    }`}
+                  >
+                    <span className={`font-medium ${day.getMonth() === currentDate.getMonth() ? 'text-black dark:text-white' : 'text-gray-400'}`}>
+                      {day.getDate()}
+                    </span>
+                    {renderTask(day)}
+                  </td>
+                );
+              })}
             </tr>
           ))}
         </tbody>
@@ -166,8 +174,7 @@ const Calendar = () => {
 
   const renderOutOfScopeTasks = () => {
     const outOfScopeTasks = tasks.filter(task => {
-      const taskDate = new Date(task.deadline);
-      return taskDate > calendarDays[calendarDays.length - 1];
+      return task.deadline > calendarDays[calendarDays.length - 1].toISOString().split('T')[0];
     });
 
     if (outOfScopeTasks.length === 0) return null;
