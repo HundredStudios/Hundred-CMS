@@ -39,6 +39,7 @@ const TaskOverlay: React.FC<TaskOverlayProps> = ({ onClose }) => {
     const taskData = {
       project_name: project,
       deadline,
+      done: false,
     };
 
     // Insert into the respective table based on taskType (todo/bug)
@@ -47,7 +48,7 @@ const TaskOverlay: React.FC<TaskOverlayProps> = ({ onClose }) => {
         const todoData = { ...taskData, todo: title }; // update title in 'todo' column
         const { error } = await supabase.from("todo").insert([todoData]);
         if (error) throw error;
-      } else if (taskType === "bug") {
+      } else if (taskType === "bugs") {
         const bugData = { ...taskData, bug: title }; // update title in 'bug' column
         const { error } = await supabase.from("bugs").insert([bugData]);
         if (error) throw error;
@@ -117,7 +118,7 @@ const TaskOverlay: React.FC<TaskOverlayProps> = ({ onClose }) => {
               required
             >
               <option value="todo">ToDo</option>
-              <option value="bug">Bug</option>
+              <option value="bugs">Bug</option>
             </select>
           </div>
 

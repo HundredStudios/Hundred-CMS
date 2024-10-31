@@ -11,7 +11,7 @@ const supabase = createClient(supabaseUrl, supabaseKey);
 
 interface BugData {
   id: number;
-  bugs: string;
+  bug: string;
   project_name: string;
   takenBy: string | null;
   done: boolean;
@@ -50,6 +50,8 @@ const ChartTwo: React.FC = () => {
   const [bugDropdownIndex, setBugDropdownIndex] = useState<number | null>(null);
   const [todoDropdownIndex, setTodoDropdownIndex] = useState<number | null>(null);
   const [currentUser, setCurrentUser] = useState<string | null>(null);
+  
+  
 
   useEffect(() => {
     const fetchUserData = async () => {
@@ -77,53 +79,59 @@ const ChartTwo: React.FC = () => {
       const [bugsResult, todoResult] = await Promise.all([
         supabase
           .from("bugs")
-          .select("id, bugs, project_name, takenBy, done")
+          .select("id, bug, project_name, takenBy, done") // No alias here
           .eq("done", false),
         supabase
           .from("todo")
           .select("id, todo, project_name, takenBy, done")
           .eq("done", false)
       ]);
-
+    
       if (bugsResult.error) {
         console.error("Error fetching bugs:", bugsResult.error);
       } else {
-        setBugs(bugsResult.data || []);
+        // Ensure the fetched data conforms to the BugData type
+        setBugs(bugsResult.data as BugData[] || []); // Use type assertion
       }
-
+    
       if (todoResult.error) {
         console.error("Error fetching todos:", todoResult.error);
       } else {
         setTodos(todoResult.data || []);
       }
     };
+    
+    
 
     fetchUserData();
     fetchData();
   }, []);
 
   const handleTakeTask = async (task: BugData | TodoData, type: "bug" | "todo") => {
+    console.log(`Taking task: ${task.id}, Type: ${type}, Current User: ${currentUser}`);
+  
     try {
       const { error } = await supabase
         .from(type === "bug" ? "bugs" : "todo")
         .update({ takenBy: currentUser })
         .eq("id", task.id);
-
+  
       if (error) {
-        console.error("Error taking task:", error);
+        console.error("Error taking task:", error.message);
         return;
       }
-
+  
       const updateState = (prevItems: any[]) => 
         prevItems.map(item => 
           item.id === task.id ? { ...item, takenBy: currentUser } : item
         );
-
+  
       type === "bug" ? setBugs(updateState) : setTodos(updateState);
     } catch (error) {
       console.error("Failed to take task:", error);
     }
   };
+  
 
   const handleMarkDone = async (task: BugData | TodoData, type: "bug" | "todo") => {
     try {
@@ -155,7 +163,7 @@ const ChartTwo: React.FC = () => {
           whileHover="hover"
           whileTap="tap"
           className="flex items-center gap-2 text-blue-500 hover:text-blue-600 transition-colors duration-200"
-          onClick={() => handleTakeTask(task, 'bugs' in task ? "bug" : "todo")}
+          onClick={() => handleTakeTask(task, 'bug' in task ? "bug" : "todo")}
         >
           <Circle className="w-3 h-3" />
           <span className="font-medium text-sm">Take Task</span>
@@ -220,7 +228,7 @@ const ChartTwo: React.FC = () => {
         <div className="flex-1">
           <div className="flex items-center">
             <span className="text-sm text-white font-bold tracking-wide">
-              {type === "bug" ? (item as BugData).bugs : (item as TodoData).todo}
+              {type === "bug" ? (item as BugData).bug : (item as TodoData).todo}
             </span>
             <span className="text-[10px] text-gray-400 ml-2 font-normal">
               ({item.project_name})
