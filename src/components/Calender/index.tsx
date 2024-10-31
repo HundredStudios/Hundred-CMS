@@ -42,25 +42,24 @@ const Calendar = () => {
       console.error('Calendar days not set');
       return;
     }
-
+  
     const startDate = calendarDays[0].toISOString().split('T')[0];
     const endDate = calendarDays[calendarDays.length - 1].toISOString().split('T')[0];
-
+  
     try {
       const [{ data: bugs, error: bugsError }, { data: todos, error: todosError }] = await Promise.all([
         supabase.from('bugs').select('*').eq('done', false).gte('deadline', startDate).lte('deadline', endDate),
         supabase.from('todo').select('*').eq('done', false).gte('deadline', startDate).lte('deadline', endDate)
       ]);
-
+  
       if (bugsError) throw bugsError;
       if (todosError) throw todosError;
-
+  
       const allTasks = [...(bugs || []), ...(todos || [])].map(task => ({
         ...task,
-        type: task.hasOwnProperty('severity') ? 'bug' : 'todo',
         deadline: new Date(task.deadline).toISOString().split('T')[0] // Normalize deadline to YYYY-MM-DD
       }));
-
+  
       setTasks(allTasks);
     } catch (error) {
       console.error('Error fetching tasks:', error);
@@ -94,8 +93,8 @@ const Calendar = () => {
   };
 
   const renderTask = (date: Date) => {
-    const dateStr = date.toISOString().split('T')[0];
-    const tasksForDate = tasks.filter(t => t.deadline === dateStr);
+    const localDateStr = date.toLocaleDateString("en-CA"); // "en-CA" format matches "YYYY-MM-DD"
+    const tasksForDate = tasks.filter(t => t.deadline === localDateStr);
   
     if (tasksForDate.length > 0) {
       return (
@@ -105,11 +104,9 @@ const Calendar = () => {
             {tasksForDate.map((task, index) => (
               <div key={index} className="mb-1 last:mb-0">
                 <span className="event-name text-sm font-semibold text-black dark:text-white">
-                  {task.title || task.description}
+                {task.taskType === 'todo' ? task.title : task.bug} {/* Display task title or description */}
                 </span>
-                <span className="time text-sm font-medium text-black dark:text-white ml-2">
-                  (Due: {new Date(task.deadline).toLocaleDateString()})
-                </span>
+                
                 <button
                   onClick={(e) => {
                     e.stopPropagation();
@@ -127,6 +124,8 @@ const Calendar = () => {
     }
     return null;
   };
+  
+  
 
   const renderCalendar = () => {
     const today = new Date();
