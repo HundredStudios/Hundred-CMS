@@ -1,4 +1,4 @@
-"use client";
+'use client';
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "../../lib/supabseClient";
@@ -6,20 +6,24 @@ import Image from "next/image";
 import DefaultLayout from "@/components/Layouts/DefaultLayout";
 import Breadcrumb from "@/components/Breadcrumbs/Breadcrumb";
 
+interface Task {
+  id: number;
+  task: string;
+  source: 'bugs' | 'todo';
+  status?: string;
+}
+
 const Profile = () => {
   const [name, setName] = useState("");
   const [isEditing, setIsEditing] = useState(false);
   const [profileImage, setProfileImage] = useState("/images/user/user-06.png");
   const [loading, setLoading] = useState(true);
   const [uploadingImage, setUploadingImage] = useState(false);
+  const [tasks, setTasks] = useState<Task[]>([]);
   const router = useRouter();
-  const tasks = ["Design new UI components", "Fix bugs in dashboard", "Update documentation"];
-
-
-  
 
   useEffect(() => {
-    const getProfile = async () => {
+    const getProfileAndTasks = async () => {
       try {
         setLoading(true);
         const { data: { user } } = await supabase.auth.getUser();
@@ -29,61 +33,92 @@ const Profile = () => {
           return;
         }
   
-        let { data, error, status } = await supabase
+        // Fetch profile data
+        let { data: profileData, error: profileError } = await supabase
           .from('profiles')
-          .select('name, avatar_url')
+          .select('username, avatar_url')
           .eq('user_id', user.id)
           .single();
   
-        if (error && status !== 406) {
-          throw error;
+        if (profileError && profileError.code !== '406') {
+          throw profileError;
         }
   
-        if (data) {
-          setName(data.name || '');
-          setProfileImage(data.avatar_url || '/images/user/user-06.png');
+        if (profileData) {
+          setName(profileData.username || '');
+          setProfileImage(profileData.avatar_url || '/images/user/user-06.png');
+
+          // Fetch bugs assigned to the user
+          const { data: bugsData, error: bugsError } = await supabase
+            .from('bugs')
+            .select('id, bug')
+            .eq('takenBy', profileData.username);
+
+          if (bugsError) throw bugsError;
+
+          // Fetch todos assigned to the user
+          const { data: todosData, error: todosError } = await supabase
+            .from('todo')
+            .select('id, todo')
+            .eq('takenBy', profileData.username);
+
+          if (todosError) throw todosError;
+
+          // Combine and format tasks
+          const combinedTasks = [
+            ...(bugsData || []).map(bug => ({ 
+              id: bug.id, 
+              task: bug.bug, 
+              source: 'bugs' as const 
+            })),
+            ...(todosData || []).map(todo => ({ 
+              id: todo.id, 
+              task: todo.todo, 
+              source: 'todo' as const 
+            }))
+          ];
+
+          setTasks(combinedTasks);
         }
       } catch (error) {
-        console.error('Error loading user data!', error);
+        console.error('Error loading user data and tasks!', error);
       } finally {
         setLoading(false);
       }
     };
   
-    getProfile();
+    getProfileAndTasks();
   }, [router]);
   
-const updateProfile = async (newAvatarUrl = null) => {
-  try {
-    setLoading(true);
-    const { data: { user } } = await supabase.auth.getUser();
+  const updateProfile = async (newAvatarUrl = null) => {
+    try {
+      setLoading(true);
+      const { data: { user } } = await supabase.auth.getUser();
 
-    if (!user) throw new Error('No user logged in');
+      if (!user) throw new Error('No user logged in');
 
-    const updates = {
-      name: name || null, // Update the name
-      avatar_url: newAvatarUrl || profileImage, // Update the avatar
-      updated_at: new Date().toISOString(),
-    };
+      const updates = {
+        name: name || null,
+        avatar_url: newAvatarUrl || profileImage,
+        updated_at: new Date().toISOString(),
+      };
 
-    // Update the user's profile in the database using the update method
-    const { error } = await supabase
-      .from('profiles')
-      .update({name: name})
-      .eq('user_id', user.id); // Ensure we're updating the correct user's profile
+      const { error } = await supabase
+        .from('profiles')
+        .update({ name: name })
+        .eq('user_id', user.id);
 
-    if (error) throw error; // Handle any errors
+      if (error) throw error;
 
-    alert('Profile updated successfully!');
-  } catch (error) {
-    console.error('Error updating the data!', error);
-    alert('There was an error updating your profile. Please try again.');
-  } finally {
-    setLoading(false);
-    setIsEditing(false);  // Exit editing mode
-  }
-};
-
+      alert('Profile updated successfully!');
+    } catch (error) {
+      console.error('Error updating the data!', error);
+      alert('There was an error updating your profile. Please try again.');
+    } finally {
+      setLoading(false);
+      setIsEditing(false);
+    }
+  };
 
   const handleNameChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setName(e.target.value);
@@ -110,37 +145,27 @@ const updateProfile = async (newAvatarUrl = null) => {
         const { data: { user } } = await supabase.auth.getUser();
         if (!user) throw new Error('No user logged in');
   
-        // Upload the image to Supabase Storage
         let { error: uploadError } = await supabase.storage
           .from('avatars')
           .upload(filePath, file);
   
-        if (uploadError) {
-          throw uploadError;
-        }
+        if (uploadError) throw uploadError;
   
-        // Get the public URL of the uploaded image (without destructuring `error`)
         const { data } = supabase.storage
           .from('avatars')
           .getPublicUrl(filePath);
   
         const publicUrl = data?.publicUrl;
   
-        if (!publicUrl) {
-          throw new Error("Failed to get public URL");
-        }
+        if (!publicUrl) throw new Error("Failed to get public URL");
   
-        // Update the user's profile with the new avatar URL
         const { error: updateError } = await supabase
           .from('profiles')
           .update({ avatar_url: publicUrl })
           .eq('user_id', user.id);
   
-        if (updateError) {
-          throw updateError;
-        }
+        if (updateError) throw updateError;
   
-        // Update local state
         setProfileImage(publicUrl);
         alert('Profile image updated successfully!');
       } catch (error) {
@@ -151,8 +176,6 @@ const updateProfile = async (newAvatarUrl = null) => {
       }
     }
   };
-  
-  
 
   if (loading) {
     return <div>Loading...</div>;
@@ -222,13 +245,29 @@ const updateProfile = async (newAvatarUrl = null) => {
             </div>
             <div className="mt-10">
               <h3 className="text-2xl font-semibold">Your Tasks</h3>
-              <ul className="list-disc list-inside mt-4 text-left">
-                {tasks.map((task, index) => (
-                  <li key={index} className="text-gray-700">
-                    {task}
-                  </li>
-                ))}
-              </ul>
+              {tasks.length > 0 ? (
+                <div className="mt-4 max-w-xl mx-auto">
+                  <ul className="space-y-3">
+                    {tasks.map(task => (
+                      <li 
+                        key={`${task.source}-${task.id}`} 
+                        className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg"
+                      >
+                        <span className={`text-xs font-medium px-2 py-1 rounded ${
+                          task.source === 'bugs' 
+                            ? 'bg-red-100 text-red-700' 
+                            : 'bg-blue-100 text-blue-700'
+                        }`}>
+                          {task.source === 'bugs' ? 'Bug' : 'Todo'}
+                        </span>
+                        <span className="text-gray-700">{task.task}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              ) : (
+                <p className="mt-4 text-gray-500">No tasks assigned to you yet.</p>
+              )}
             </div>
           </div>
         </div>
