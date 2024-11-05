@@ -36,7 +36,7 @@ const Profile = () => {
         // Fetch profile data
         let { data: profileData, error: profileError } = await supabase
           .from('profiles')
-          .select('username, avatar_url')
+          .select('username, avatar_url,name')
           .eq('user_id', user.id)
           .single();
   
@@ -45,7 +45,7 @@ const Profile = () => {
         }
   
         if (profileData) {
-          setName(profileData.username || '');
+          setName(profileData.name || '');
           setProfileImage(profileData.avatar_url || '/images/user/user-06.png');
 
           // Fetch bugs assigned to the user
